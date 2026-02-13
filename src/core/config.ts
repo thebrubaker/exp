@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { TerminalType } from "../utils/terminal.ts";
 
 export interface ExpConfig {
@@ -12,7 +12,7 @@ export interface ExpConfig {
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
 
-const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "exp");
+export const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "exp");
 
 /**
  * Load config from:
@@ -57,4 +57,31 @@ function readConfigFile(): Record<string, string> {
 	} catch {
 		return {};
 	}
+}
+
+/**
+ * Read raw config file values (for displaying existing config).
+ */
+export function readRawConfig(): Record<string, string> {
+	return readConfigFile();
+}
+
+/**
+ * Write config values to ~/.config/exp.
+ * Ensures the parent directory exists.
+ */
+export function writeConfig(values: Record<string, string>): void {
+	const dir = dirname(CONFIG_PATH);
+	if (!existsSync(dir)) {
+		mkdirSync(dir, { recursive: true });
+	}
+
+	const lines = ["# exp configuration — https://github.com/thebrubaker/exp", ""];
+
+	for (const [key, value] of Object.entries(values)) {
+		lines.push(`${key}=${value}`);
+	}
+
+	lines.push(""); // trailing newline
+	writeFileSync(CONFIG_PATH, lines.join("\n"), "utf-8");
 }
