@@ -14,7 +14,7 @@ import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
 import { err } from "./utils/colors.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 function printHelp() {
 	console.log(`
