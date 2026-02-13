@@ -1,16 +1,17 @@
 #!/usr/bin/env bun
 
-import { loadConfig } from "./core/config.ts";
-import { cmdNew } from "./commands/new.ts";
-import { cmdLs } from "./commands/ls.ts";
-import { cmdDiff } from "./commands/diff.ts";
-import { cmdPromote } from "./commands/promote.ts";
-import { cmdTrash } from "./commands/trash.ts";
-import { cmdOpen } from "./commands/open.ts";
 import { cmdCd } from "./commands/cd.ts";
-import { cmdStatus } from "./commands/status.ts";
-import { cmdNuke } from "./commands/nuke.ts";
 import { cmdCleanExport } from "./commands/clean-export.ts";
+import { cmdDiff } from "./commands/diff.ts";
+import { cmdInit } from "./commands/init.ts";
+import { cmdLs } from "./commands/ls.ts";
+import { cmdNew } from "./commands/new.ts";
+import { cmdNuke } from "./commands/nuke.ts";
+import { cmdOpen } from "./commands/open.ts";
+import { cmdPromote } from "./commands/promote.ts";
+import { cmdStatus } from "./commands/status.ts";
+import { cmdTrash } from "./commands/trash.ts";
+import { loadConfig } from "./core/config.ts";
 import { err } from "./utils/colors.ts";
 
 const VERSION = "0.1.0";
@@ -25,8 +26,9 @@ function printHelp() {
     exp clean-export              <- remove export from original (clone keeps it)
 
   COMMANDS
+    exp init                  Set up preferences (terminal, editor, clean targets)
     exp new "description"     Clone project + open terminal
-    exp ls                    List experiments
+    exp ls [--detail]         List experiments (--detail for git status + divergence)
     exp open <id>             Open terminal in experiment
     exp diff <id>             What changed vs original
     exp promote <id>          Experiment replaces original (with backup)
@@ -60,7 +62,8 @@ function printHelp() {
 
 async function main() {
 	const rawArgs = process.argv.slice(2);
-	const verbose = rawArgs.includes("--verbose") || rawArgs.includes("--debug") || process.env.EXP_DEBUG === "1";
+	const verbose =
+		rawArgs.includes("--verbose") || rawArgs.includes("--debug") || process.env.EXP_DEBUG === "1";
 	const args = rawArgs.filter((a) => a !== "--verbose" && a !== "--debug");
 	const cmd = args[0] ?? "help";
 	const rest = args.slice(1);
@@ -76,7 +79,10 @@ async function main() {
 			case "ls":
 			case "list":
 			case "l":
-				await cmdLs(config);
+				await cmdLs(rest, config);
+				break;
+			case "init":
+				await cmdInit(config);
 				break;
 			case "diff":
 			case "d":

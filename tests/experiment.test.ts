@@ -1,7 +1,13 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { slugify, nextNum, resolveExp, readMetadata, type ExpMetadata } from "../src/core/experiment.ts";
+import {
+	type ExpMetadata,
+	nextNum,
+	readMetadata,
+	resolveExp,
+	slugify,
+} from "../src/core/experiment.ts";
 
 const TMP = "/tmp/exp-test-experiment";
 

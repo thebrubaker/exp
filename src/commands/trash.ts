@@ -1,5 +1,5 @@
-import { basename } from "node:path";
 import { rmSync } from "node:fs";
+import { basename } from "node:path";
 import { confirm } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
 import { getExpBase, resolveExp } from "../core/experiment.ts";

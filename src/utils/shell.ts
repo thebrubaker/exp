@@ -9,10 +9,7 @@ export interface ExecOptions {
 	cwd?: string;
 }
 
-export async function exec(
-	command: string[],
-	options: ExecOptions = {},
-): Promise<ExecResult> {
+export async function exec(command: string[], options: ExecOptions = {}): Promise<ExecResult> {
 	try {
 		const proc = Bun.spawn(command, {
 			stdout: "pipe",
@@ -43,10 +40,7 @@ export async function exec(
 	}
 }
 
-export async function execOrThrow(
-	command: string[],
-	options: ExecOptions = {},
-): Promise<string> {
+export async function execOrThrow(command: string[], options: ExecOptions = {}): Promise<string> {
 	const result = await exec(command, options);
 	if (!result.success) {
 		throw new Error(`Command failed: ${result.stderr || result.stdout}`);
@@ -54,10 +48,7 @@ export async function execOrThrow(
 	return result.stdout.trim();
 }
 
-export async function execCheck(
-	command: string[],
-	options: ExecOptions = {},
-): Promise<boolean> {
+export async function execCheck(command: string[], options: ExecOptions = {}): Promise<boolean> {
 	const result = await exec(command, options);
 	return result.success;
 }

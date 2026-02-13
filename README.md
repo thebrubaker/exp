@@ -92,12 +92,12 @@ IDs can be a number (`1`), full name (`001-try-redis`), or partial match (`redis
 ```
 ~/Code/
   my-project/                  # Your original project
-  .my-project-exp/
+  .exp-my-project/
     001-try-redis/             # Experiment 1 (APFS clone)
     002-refactor-auth/         # Experiment 2 (APFS clone)
 ```
 
-Experiments live in a sibling directory named `.{project}-exp`. Each experiment gets a sequential number and a slugified description.
+Experiments live in a sibling directory named `.exp-{project}`. Each experiment gets a sequential number and a slugified description.
 
 A full clone of a project with 500MB of `node_modules` takes under a second and uses almost zero additional disk space. Files only consume real space when they diverge.
 

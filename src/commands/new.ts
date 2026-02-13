@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import type { ExpConfig } from "../core/config.ts";
-import { cloneProject, cleanPostClone } from "../core/clone.ts";
 import { seedClaudeMd } from "../core/claude.ts";
+import { cleanPostClone, cloneProject } from "../core/clone.ts";
+import type { ExpConfig } from "../core/config.ts";
 import { ensureExpBase, nextNum, slugify, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
@@ -34,9 +34,11 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const cloneMs = performance.now() - tClone;
 
 	const methodLabel =
-		method === "clonefile" ? "clonefile(2)" :
-		method === "apfs" ? "APFS copy-on-write" :
-		"regular copy";
+		method === "clonefile"
+			? "clonefile(2)"
+			: method === "apfs"
+				? "APFS copy-on-write"
+				: "regular copy";
 
 	spinner.update("Writing metadata...");
 	writeMetadata(expDir, {

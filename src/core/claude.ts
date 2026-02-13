@@ -23,7 +23,7 @@ ${MARKER_END}
 
 	if (existsSync(claudePath)) {
 		const existing = readFileSync(claudePath, "utf-8");
-		writeFileSync(claudePath, header + "\n" + existing);
+		writeFileSync(claudePath, `${header}\n${existing}`);
 	} else {
 		writeFileSync(claudePath, header);
 	}

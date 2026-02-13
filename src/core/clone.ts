@@ -1,8 +1,8 @@
-import { dlopen, FFIType } from "bun:ffi";
+import { FFIType, dlopen } from "bun:ffi";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { exec } from "../utils/shell.ts";
 import { dim } from "../utils/colors.ts";
+import { exec } from "../utils/shell.ts";
 
 export type CloneMethod = "clonefile" | "apfs" | "copy";
 
@@ -18,8 +18,7 @@ try {
 			returns: FFIType.int,
 		},
 	});
-	clonefileFn = (src: Buffer, dst: Buffer, flags: number) =>
-		lib.symbols.clonefile(src, dst, flags);
+	clonefileFn = (src: Buffer, dst: Buffer, flags: number) => lib.symbols.clonefile(src, dst, flags);
 } catch {
 	// Not on macOS or libSystem not available — fine, we'll fall back
 }
@@ -35,10 +34,7 @@ function tryClonefile(source: string, destination: string): boolean {
 	}
 }
 
-export async function cloneProject(
-	source: string,
-	destination: string,
-): Promise<CloneMethod> {
+export async function cloneProject(source: string, destination: string): Promise<CloneMethod> {
 	// 1. Try clonefile(2) syscall — instant, single atomic operation
 	if (tryClonefile(source, destination)) {
 		return "clonefile";

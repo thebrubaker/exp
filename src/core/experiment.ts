@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { ExpConfig } from "./config.ts";
 

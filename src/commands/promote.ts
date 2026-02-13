@@ -1,8 +1,8 @@
 import { basename, join } from "node:path";
 import { confirm } from "@inquirer/prompts";
-import type { ExpConfig } from "../core/config.ts";
 import { stripExpMarkers } from "../core/claude.ts";
-import { getExpBase, resolveExp } from "../core/experiment.ts";
+import type { ExpConfig } from "../core/config.ts";
+import { getExpBase, readMetadata, resolveExp, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, err, ok, warn } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
@@ -24,7 +24,12 @@ export async function cmdPromote(query: string | undefined, config: ExpConfig) {
 
 	const name = getProjectName(root);
 	const expName = basename(expDir);
-	const ts = new Date().toISOString().replace(/[T:]/g, "-").replace(/\..+/, "").replace(/-/g, "").replace(/(\d{8})(\d{6})/, "$1-$2");
+	const ts = new Date()
+		.toISOString()
+		.replace(/[T:]/g, "-")
+		.replace(/\..+/, "")
+		.replace(/-/g, "")
+		.replace(/(\d{8})(\d{6})/, "$1-$2");
 
 	console.log();
 	warn(`Promote ${c.magenta(expName)} → ${c.cyan(name)}?`);
@@ -34,6 +39,14 @@ export async function cmdPromote(query: string | undefined, config: ExpConfig) {
 	if (!yes) {
 		dim("Cancelled.");
 		return;
+	}
+
+	// Record lifecycle event
+	const meta = readMetadata(expDir);
+	if (meta) {
+		meta.status = "promoted";
+		meta.promotedAt = new Date().toISOString();
+		writeMetadata(expDir, meta);
 	}
 
 	const backup = join(base, `_backup-${ts}`);

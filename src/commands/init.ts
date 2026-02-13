@@ -55,7 +55,7 @@ function detectCleanTargets(): string[] {
 	return targets;
 }
 
-export async function cmdInit(config: ExpConfig) {
+export async function cmdInit(_config: ExpConfig) {
 	const hasExisting = existsSync(CONFIG_PATH);
 	const existing = hasExisting ? readRawConfig() : {};
 
