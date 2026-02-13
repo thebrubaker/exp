@@ -8,6 +8,7 @@ export interface ExpConfig {
 	openEditor: string | null;
 	clean: string[];
 	verbose: boolean;
+	json: boolean;
 }
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
@@ -36,6 +37,7 @@ export function loadConfig(): ExpConfig {
 		openEditor: env.EXP_OPEN_EDITOR || file.open_editor || null,
 		clean,
 		verbose: false,
+		json: false,
 	};
 }
 

@@ -28,6 +28,15 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 	const all = args.includes("--all");
 	const detail = args.includes("--detail");
 
+	if (config.json) {
+		if (all) {
+			await printJsonGlobal(config);
+		} else {
+			await printJson(config);
+		}
+		return;
+	}
+
 	if (all) {
 		await printGlobal(detail, config);
 		return;
@@ -311,4 +320,91 @@ async function getFileDivergence(sourceRoot: string, expDir: string): Promise<st
 	}
 
 	return lines.length === 1 ? "1 modified vs original" : `${lines.length} modified vs original`;
+}
+
+async function printJson(config: ExpConfig) {
+	const root = getProjectRoot();
+	const name = getProjectName(root);
+	const base = getExpBase(root, config);
+
+	if (!existsSync(base)) {
+		console.log(JSON.stringify({ project: name, experiments: [] }));
+		return;
+	}
+
+	const entries = readdirSync(base, { withFileTypes: true })
+		.filter((e) => e.isDirectory())
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	const experiments = entries.map((entry) => {
+		const expDir = `${base}/${entry.name}`;
+		const meta = readMetadata(expDir);
+		return {
+			name: entry.name,
+			path: expDir,
+			description: meta?.description ?? "",
+			number: meta?.number ?? 0,
+			status: meta?.status ?? "active",
+			created: meta?.created ?? "",
+		};
+	});
+
+	console.log(JSON.stringify({ project: name, root, experiments }));
+}
+
+async function printJsonGlobal(config: ExpConfig) {
+	const scanPaths = [
+		process.env.HOME ? `${process.env.HOME}/Code` : null,
+		process.env.HOME ? `${process.env.HOME}/Projects` : null,
+		process.env.HOME ? `${process.env.HOME}/Developer` : null,
+		process.env.HOME ? `${process.env.HOME}/src` : null,
+	].filter(Boolean) as string[];
+
+	if (config.root) {
+		scanPaths.push(config.root);
+	}
+
+	const projects: Array<{
+		project: string;
+		root: string;
+		experiments: Array<Record<string, unknown>>;
+	}> = [];
+
+	for (const scanPath of scanPaths) {
+		if (!existsSync(scanPath)) continue;
+
+		const entries = readdirSync(scanPath, { withFileTypes: true });
+		for (const entry of entries) {
+			if (!entry.isDirectory() || !entry.name.startsWith(".exp-")) continue;
+
+			const projectName = entry.name.replace(/^\.exp-/, "");
+			const base = join(scanPath, entry.name);
+
+			const experiments = readdirSync(base, { withFileTypes: true })
+				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+				.sort((a, b) => a.name.localeCompare(b.name))
+				.map((e) => {
+					const expDir = join(base, e.name);
+					const meta = readMetadata(expDir);
+					return {
+						name: e.name,
+						path: expDir,
+						description: meta?.description ?? "",
+						number: meta?.number ?? 0,
+						status: meta?.status ?? "active",
+						created: meta?.created ?? "",
+					};
+				});
+
+			if (experiments.length > 0) {
+				projects.push({
+					project: projectName,
+					root: join(scanPath, projectName),
+					experiments,
+				});
+			}
+		}
+	}
+
+	console.log(JSON.stringify({ projects }));
 }

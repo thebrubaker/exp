@@ -40,6 +40,11 @@ export async function cmdDiff(query: string | undefined, config: ExpConfig) {
 
 	const hasGit = existsSync(`${expDir}/.git`);
 
+	if (config.json) {
+		await jsonDiff(root, expDir, name, expName, hasGit);
+		return;
+	}
+
 	if (hasGit) {
 		await gitDiff(root, expDir, name, expName, config);
 	} else {
@@ -180,4 +185,64 @@ async function fsDiff(root: string, expDir: string, name: string, expName: strin
 
 	console.log();
 	dim(`  Full: diff -r '${root}' '${expDir}' --exclude=node_modules --exclude=.git`);
+}
+
+async function jsonDiff(
+	root: string,
+	expDir: string,
+	name: string,
+	expName: string,
+	hasGit: boolean,
+) {
+	let branch: string | null = null;
+	let uncommitted = 0;
+
+	if (hasGit) {
+		const branchResult = await exec(["git", "-C", expDir, "branch", "--show-current"]);
+		branch = branchResult.stdout.trim() || null;
+
+		const statusResult = await exec(["git", "-C", expDir, "status", "--porcelain"]);
+		uncommitted = statusResult.stdout.trim() ? statusResult.stdout.trim().split("\n").length : 0;
+	}
+
+	// Get file-level differences
+	const excludeArgs = DIFF_EXCLUDES.flatMap((e) => ["--exclude", e]);
+	const result = await exec(["diff", "-rq", root, expDir, ...excludeArgs]);
+
+	const files: Array<{ path: string; status: "modified" | "added" | "removed" }> = [];
+
+	if (result.stdout.trim()) {
+		for (const line of result.stdout.trim().split("\n").filter(Boolean)) {
+			const differMatch = line.match(/^Files (.+) and (.+) differ$/);
+			if (differMatch) {
+				const relPath = differMatch[2].replace(`${expDir}/`, "");
+				files.push({ path: relPath, status: "modified" });
+				continue;
+			}
+
+			const onlyInMatch = line.match(/^Only in (.+): (.+)$/);
+			if (onlyInMatch) {
+				const dir = onlyInMatch[1];
+				const fileName = onlyInMatch[2];
+				if (dir.startsWith(expDir) || dir === expDir) {
+					const relPath = `${dir.replace(`${expDir}/`, "").replace(expDir, "")}${dir === expDir ? "" : "/"}${fileName}`;
+					files.push({ path: relPath.replace(/^\//, ""), status: "added" });
+				} else {
+					const relPath = `${dir.replace(`${root}/`, "").replace(root, "")}${dir === root ? "" : "/"}${fileName}`;
+					files.push({ path: relPath.replace(/^\//, ""), status: "removed" });
+				}
+			}
+		}
+	}
+
+	console.log(
+		JSON.stringify({
+			project: name,
+			experiment: expName,
+			path: expDir,
+			branch,
+			uncommitted,
+			files,
+		}),
+	);
 }

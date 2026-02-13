@@ -14,7 +14,7 @@ import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
 import { err } from "./utils/colors.ts";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 function printHelp() {
 	console.log(`
@@ -53,6 +53,7 @@ function printHelp() {
       clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
 
   FLAGS
+    --json               Machine-readable JSON output (for AI/scripts)
     --verbose            Show timing, paths, and method details
 
   HOW IT WORKS
@@ -65,11 +66,13 @@ async function main() {
 	const rawArgs = process.argv.slice(2);
 	const verbose =
 		rawArgs.includes("--verbose") || rawArgs.includes("--debug") || process.env.EXP_DEBUG === "1";
-	const args = rawArgs.filter((a) => a !== "--verbose" && a !== "--debug");
+	const json = rawArgs.includes("--json");
+	const args = rawArgs.filter((a) => a !== "--verbose" && a !== "--debug" && a !== "--json");
 	const cmd = args[0] ?? "help";
 	const rest = args.slice(1);
 	const config = loadConfig();
 	config.verbose = verbose;
+	config.json = json;
 
 	try {
 		switch (cmd) {

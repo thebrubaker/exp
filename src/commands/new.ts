@@ -159,6 +159,25 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	// ── Output ──
 
+	if (config.json) {
+		console.log(
+			JSON.stringify({
+				name: expName,
+				number: Number.parseInt(num, 10),
+				path: expDir,
+				source: cloneSource,
+				branch: branchName,
+				method,
+				terminal: terminalType,
+				description,
+				from: fromExpName ?? null,
+				cloneMs: Math.round(cloneMs),
+				totalMs: Math.round(totalMs),
+			}),
+		);
+		return;
+	}
+
 	if (verbose) {
 		info(`Cloning ${c.cyan(cloneSourceLabel)} → ${c.magenta(expName)}`);
 
