@@ -6,7 +6,7 @@ import type { ExpConfig } from "../core/config.ts";
 import { ensureExpBase, nextNum, resolveExp, slugify, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
-import { execCheck } from "../utils/shell.ts";
+import { exec, execCheck } from "../utils/shell.ts";
 import { startSpinner } from "../utils/spinner.ts";
 import { detectTerminal, openTerminalAt } from "../utils/terminal.ts";
 
@@ -79,6 +79,18 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num, fromExpName);
 
+	// Create git branch for PR workflow
+	let branchName: string | null = null;
+	if (existsSync(`${expDir}/.git`)) {
+		branchName = `exp/${slug}`;
+		spinner.update(`Creating branch ${branchName}...`);
+		const branchResult = await exec(["git", "-C", expDir, "checkout", "-b", branchName]);
+		if (!branchResult.success) {
+			warn(`Could not create branch ${branchName}: ${branchResult.stderr.trim()}`);
+			branchName = null;
+		}
+	}
+
 	let cleanMs = 0;
 	if (config.clean.length > 0) {
 		spinner.update(`Cleaning ${config.clean.join(", ")}...`);
@@ -103,7 +115,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	if (config.openEditor) {
 		const hasEditor = await execCheck(["which", config.openEditor]);
 		if (hasEditor) {
-			const { exec } = await import("../utils/shell.ts");
 			await exec([config.openEditor, expDir]);
 		}
 	}
@@ -122,6 +133,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		ok(cloneDetail);
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
+
+		if (branchName) {
+			ok(`Branch: ${c.cyan(branchName)}`);
+		}
 
 		const hasNextConfig =
 			existsSync(`${root}/next.config.js`) ||
@@ -143,6 +158,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
 	} else {
 		ok(`${c.bold(expName)} ${c.dim(`cloned in ${fmt(totalMs)}`)}`);
+
+		if (branchName) {
+			dim(`  branch: ${branchName}`);
+		}
 
 		if (terminalType === "none") {
 			dim(`  cd ${expDir}`);
