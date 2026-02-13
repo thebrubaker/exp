@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
+import { basename } from "node:path";
 import { seedClaudeMd } from "../core/claude.ts";
 import { cleanPostClone, cloneProject } from "../core/clone.ts";
 import type { ExpConfig } from "../core/config.ts";
-import { ensureExpBase, nextNum, slugify, writeMetadata } from "../core/experiment.ts";
+import { ensureExpBase, nextNum, resolveExp, slugify, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import { execCheck } from "../utils/shell.ts";
@@ -18,19 +19,45 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
 	const verbose = config.verbose;
 
-	const description = args.join(" ") || "experiment";
+	// Parse --from flag
+	let fromId: string | null = null;
+	const filteredArgs: string[] = [];
+	for (let i = 0; i < args.length; i++) {
+		if (args[i] === "--from") {
+			fromId = args[i + 1] ?? null;
+			i++; // skip next arg
+		} else {
+			filteredArgs.push(args[i]);
+		}
+	}
+	const description = filteredArgs.join(" ") || "experiment";
+
 	const root = getProjectRoot();
 	const name = getProjectName(root);
 	const slug = slugify(description);
-	const num = nextNum(ensureExpBase(root, config));
-	const expName = `${num}-${slug}`;
 	const base = ensureExpBase(root, config);
+	const num = nextNum(base);
+	const expName = `${num}-${slug}`;
 	const expDir = `${base}/${expName}`;
 
-	const spinner = startSpinner(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
+	// Resolve clone source
+	let cloneSource = root;
+	let cloneSourceLabel = name;
+	let fromExpName: string | undefined;
+	if (fromId) {
+		const resolved = resolveExp(fromId, base);
+		if (!resolved) {
+			throw new Error(`Experiment not found: ${fromId}`);
+		}
+		cloneSource = resolved;
+		fromExpName = basename(resolved);
+		cloneSourceLabel = fromExpName;
+	}
+
+	const spinner = startSpinner(`Cloning ${c.cyan(cloneSourceLabel)} → ${c.magenta(expName)}`);
 
 	const tClone = performance.now();
-	const method = await cloneProject(root, expDir);
+	const method = await cloneProject(cloneSource, expDir);
 	const cloneMs = performance.now() - tClone;
 
 	const methodLabel =
@@ -44,13 +71,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	writeMetadata(expDir, {
 		name: expName,
 		description,
-		source: root,
+		source: cloneSource,
 		created: new Date().toISOString(),
 		number: Number.parseInt(num, 10),
 	});
 
 	spinner.update("Seeding CLAUDE.md...");
-	seedClaudeMd(expDir, description, name, root, num);
+	seedClaudeMd(expDir, description, name, root, num, fromExpName);
 
 	let cleanMs = 0;
 	if (config.clean.length > 0) {
@@ -86,14 +113,14 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	// ── Output ──
 
 	if (verbose) {
-		info(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
+		info(`Cloning ${c.cyan(cloneSourceLabel)} → ${c.magenta(expName)}`);
 
 		let cloneDetail = `Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}`;
 		if (config.clean.length > 0) {
 			cloneDetail += ` (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`;
 		}
 		ok(cloneDetail);
-		dim(`  source: ${root}`);
+		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
 
 		const hasNextConfig =
