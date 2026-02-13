@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build macOS binaries
+    name: Build & Release
     runs-on: macos-latest
 
     steps:
@@ -28,6 +28,30 @@ jobs:
 
       - name: Build macOS x64
         run: bun build src/exp.ts --compile --target=bun-darwin-x64 --outfile dist/exp-darwin-x64
+
+      - name: Create archives
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd dist
+
+          mkdir -p exp_${VERSION}_darwin_arm64
+          cp exp-darwin-arm64 exp_${VERSION}_darwin_arm64/exp
+          tar -czf exp_${VERSION}_darwin_arm64.tar.gz exp_${VERSION}_darwin_arm64
+
+          mkdir -p exp_${VERSION}_darwin_x64
+          cp exp-darwin-x64 exp_${VERSION}_darwin_x64/exp
+          tar -czf exp_${VERSION}_darwin_x64.tar.gz exp_${VERSION}_darwin_x64
+
+      - name: Generate checksums
+        id: checksums
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd dist
+          ARM64_SHA=$(shasum -a 256 exp_${VERSION}_darwin_arm64.tar.gz | cut -d' ' -f1)
+          X64_SHA=$(shasum -a 256 exp_${VERSION}_darwin_x64.tar.gz | cut -d' ' -f1)
+          echo "arm64_sha=${ARM64_SHA}" >> "$GITHUB_OUTPUT"
+          echo "x64_sha=${X64_SHA}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
         id: changelog
@@ -48,5 +72,54 @@ jobs:
         with:
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            dist/exp-darwin-arm64
-            dist/exp-darwin-x64
+            dist/exp_${{ steps.checksums.outputs.version }}_darwin_arm64.tar.gz
+            dist/exp_${{ steps.checksums.outputs.version }}_darwin_x64.tar.gz
+
+      - name: Update Homebrew formula
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.checksums.outputs.version }}"
+          ARM64_SHA="${{ steps.checksums.outputs.arm64_sha }}"
+          X64_SHA="${{ steps.checksums.outputs.x64_sha }}"
+
+          cat > /tmp/exp.rb << FORMULA
+          # typed: false
+          # frozen_string_literal: true
+
+          class Exp < Formula
+            desc "Instant experiment forking via macOS APFS clonefile"
+            homepage "https://github.com/thebrubaker/exp"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/thebrubaker/exp/releases/download/v${VERSION}/exp_${VERSION}_darwin_arm64.tar.gz"
+                sha256 "${ARM64_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "https://github.com/thebrubaker/exp/releases/download/v${VERSION}/exp_${VERSION}_darwin_x64.tar.gz"
+                sha256 "${X64_SHA}"
+              end
+            end
+
+            def install
+              bin.install "exp"
+            end
+
+            test do
+              system bin/"exp", "--version"
+            end
+          end
+          FORMULA
+
+          cd /tmp
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/digitalpine/homebrew-tap.git"
+          cd homebrew-tap
+          cp /tmp/exp.rb exp.rb
+          git add exp.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update exp to ${VERSION}"
+          git push
