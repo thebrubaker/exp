@@ -1,14 +1,21 @@
+import { existsSync } from "node:fs";
 import type { ExpConfig } from "../core/config.ts";
 import { cloneProject, cleanPostClone } from "../core/clone.ts";
 import { seedClaudeMd } from "../core/claude.ts";
 import { ensureExpBase, nextNum, slugify, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
-import { detectTerminal, openTerminalAt } from "../utils/terminal.ts";
-import { existsSync } from "node:fs";
 import { execCheck } from "../utils/shell.ts";
+import { detectTerminal, openTerminalAt } from "../utils/terminal.ts";
+
+function fmt(ms: number): string {
+	if (ms < 1000) return `${Math.round(ms)}ms`;
+	return `${(ms / 1000).toFixed(1)}s`;
+}
 
 export async function cmdNew(args: string[], config: ExpConfig) {
+	const t0 = performance.now();
+
 	const description = args.join(" ") || "experiment";
 	const root = getProjectRoot();
 	const name = getProjectName(root);
@@ -20,7 +27,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	info(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
 
+	const tClone = performance.now();
 	const method = await cloneProject(root, expDir);
+	const cloneMs = performance.now() - tClone;
 
 	writeMetadata(expDir, {
 		name: expName,
@@ -32,15 +41,20 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	seedClaudeMd(expDir, description, name, root, num);
 
+	const methodLabel =
+		method === "clonefile" ? "clonefile(2)" :
+		method === "apfs" ? "APFS copy-on-write" :
+		"regular copy";
+
 	if (config.clean.length > 0) {
+		const tClean = performance.now();
 		cleanPostClone(expDir, config.clean);
+		const cleanMs = performance.now() - tClean;
+		ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))} (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`);
+	} else {
+		ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}`);
 	}
 
-	if (method === "apfs") {
-		ok("Cloned (instant, copy-on-write)");
-	} else {
-		ok("Cloned (regular copy)");
-	}
 	dim(`  source: ${root}`);
 	dim(`  exp:    ${expDir}`);
 
@@ -59,8 +73,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	// Open terminal
 	const terminalType = detectTerminal(config.terminal);
 	if (terminalType !== "none") {
+		const tTerm = performance.now();
 		await openTerminalAt(expDir, expName, terminalType);
-		ok("Terminal open");
+		ok(`Terminal open (${fmt(performance.now() - tTerm)})`);
 	} else {
 		ok(`Ready: cd '${expDir}'`);
 	}
@@ -75,5 +90,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	}
 
 	console.log();
+	dim(`  total: ${fmt(performance.now() - t0)}`);
 	dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
 }

@@ -39,16 +39,19 @@ function printHelp() {
   IDs
     Number (1), full name (001-try-redis), or partial match (redis).
 
-  CONFIG (env vars)
-    EXP_ROOT           Override experiment storage location
-    EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
-    EXP_OPEN_EDITOR    code | cursor | zed
-    EXP_CLEAN          Dirs to nuke after clone, e.g. ".next .turbo dist"
+  CONFIG
+    ~/.config/exp      Config file (key=value, one per line)
+    EXP_* env vars     Override config file values
+
+    Keys / env vars:
+      root             EXP_ROOT           Override experiment storage location
+      terminal         EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
+      open_editor      EXP_OPEN_EDITOR    code | cursor | zed
+      clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
 
   HOW IT WORKS
-    macOS APFS clonefile (cp -cR): instant copy-on-write clone.
-    800MB node_modules -> cloned in <1s, near-zero disk.
-    .env, .git, node_modules, exports — everything comes along.
+    macOS clonefile(2) syscall: atomic copy-on-write clone of entire directory.
+    .env, .git, node_modules, exports — everything comes along, near-zero disk.
 `);
 }
 

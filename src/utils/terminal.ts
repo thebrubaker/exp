@@ -20,15 +20,27 @@ export function detectTerminal(override?: string): TerminalType {
 
 export async function openTerminalAt(dir: string, title: string, terminalType: TerminalType) {
 	switch (terminalType) {
-		case "ghostty":
+		case "ghostty": {
+			// Use osascript to open a single new window in the existing Ghostty instance,
+			// then type the cd command. Using `open -na` would launch a new Ghostty instance
+			// which restores all previous windows.
+			const safeDir = dir.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+			const safeTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 			await exec([
-				"open",
-				"-na",
-				"Ghostty.app",
-				"--args",
-				`--working-directory=${dir}`,
+				"osascript",
+				"-e",
+				`tell application "Ghostty" to activate
+tell application "System Events"
+	tell process "Ghostty"
+		click menu item "New Window" of menu "File" of menu bar 1
+		delay 0.5
+		keystroke "cd \\"${safeDir}\\" && clear && echo \\"${safeTitle}\\""
+		key code 36
+	end tell
+end tell`,
 			]);
 			break;
+		}
 
 		case "iterm": {
 			const safeDir = dir.replace(/'/g, "'\\''");

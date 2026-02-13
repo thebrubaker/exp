@@ -27,6 +27,9 @@ export async function cmdStatus(config: ExpConfig) {
 	}
 
 	console.log(`${c.bold("Terminal:")} ${detectTerminal(config.terminal)}`);
+	if (config.clean.length > 0) {
+		console.log(`${c.bold("Clean:")}    ${config.clean.join(" ")}`);
+	}
 
 	// Check for export files
 	let exportCount = 0;
