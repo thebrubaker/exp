@@ -10,12 +10,14 @@ export function seedClaudeMd(
 	projectName: string,
 	projectRoot: string,
 	num: string,
+	fromExp?: string,
 ) {
 	const claudePath = join(expDir, "CLAUDE.md");
+	const lineageLine = fromExp ? `\nForked from experiment \`${fromExp}\`.` : "";
 	const header = `${MARKER_START}
 ## Side quest: ${description}
 
-APFS clone of \`${projectName}\`. Original untouched at \`${projectRoot}\`.
+APFS clone of \`${projectName}\`. Original untouched at \`${projectRoot}\`.${lineageLine}
 Goal: **${description}**
 Promote: \`exp promote ${num}\` | Trash: \`exp trash ${num}\`
 ${MARKER_END}
