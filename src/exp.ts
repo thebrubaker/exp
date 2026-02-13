@@ -9,6 +9,7 @@ import { cmdNew } from "./commands/new.ts";
 import { cmdNuke } from "./commands/nuke.ts";
 import { cmdOpen } from "./commands/open.ts";
 import { cmdPromote } from "./commands/promote.ts";
+import { cmdSnap } from "./commands/snap.ts";
 import { cmdStatus } from "./commands/status.ts";
 import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
@@ -28,7 +29,11 @@ function printHelp() {
   COMMANDS
     exp init                  Set up preferences (terminal, editor, clean targets)
     exp new "description"     Clone project + open terminal
+    exp new "desc" --from <id>  Clone from existing experiment
     exp ls [--detail]         List experiments (--detail for git status + divergence)
+    exp snap <id> "desc"      Create snapshot of experiment
+    exp snap list <id>        List snapshots
+    exp snap restore <id> <s> Restore experiment from snapshot
     exp open <id>             Open terminal in experiment
     exp diff <id>             What changed vs original
     exp promote <id>          Experiment replaces original (with backup)
@@ -107,6 +112,10 @@ async function main() {
 			case "status":
 			case "st":
 				await cmdStatus(config);
+				break;
+			case "snap":
+			case "s":
+				await cmdSnap(rest, config);
 				break;
 			case "nuke":
 				await cmdNuke(config);
