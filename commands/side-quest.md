@@ -40,7 +40,7 @@ Tell the user the experiment is ready. Include:
 - **Experiment path** — the full path to the clone
 - **Open it** — `cd <path> && claude`
 - **Check on it later** — `exp ls` to see all experiments, `exp diff <num>` to see what changed
-- **Bring it back** — `exp promote <num>` to replace the original with the experiment
+- **Bring it back** — commit, push the branch, merge via git/PR
 - **Discard it** — `exp trash <num>` to delete the clone
 
 Keep the output concise. The user wants to know it worked and how to get there.

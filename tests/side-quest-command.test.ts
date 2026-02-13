@@ -31,7 +31,6 @@ describe("side-quest command file", () => {
 	test("mentions key exp commands for follow-up", () => {
 		expect(content).toContain("exp ls");
 		expect(content).toContain("exp diff");
-		expect(content).toContain("exp promote");
 		expect(content).toContain("exp trash");
 	});
 });

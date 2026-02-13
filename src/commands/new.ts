@@ -194,7 +194,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		console.log();
 		dim(`  total: ${fmt(totalMs)}`);
-		dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
+		dim(`  exp diff ${num} · exp trash ${num}`);
 	} else {
 		ok(`${c.bold(expName)} ${c.dim(`cloned in ${fmt(totalMs)}`)}`);
 
@@ -207,6 +207,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 
 		console.log();
-		dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
+		dim(`  exp diff ${num} · exp trash ${num}`);
 	}
 }

@@ -19,7 +19,7 @@ export function seedClaudeMd(
 
 APFS clone of \`${projectName}\`. Original untouched at \`${projectRoot}\`.${lineageLine}
 Goal: **${description}**
-Promote: \`exp promote ${num}\` | Trash: \`exp trash ${num}\`
+Diff: \`exp diff ${num}\` | Trash: \`exp trash ${num}\`
 ${MARKER_END}
 `;
 
@@ -29,35 +29,4 @@ ${MARKER_END}
 	} else {
 		writeFileSync(claudePath, header);
 	}
-}
-
-export function stripExpMarkers(filePath: string) {
-	if (!existsSync(filePath)) return;
-
-	const content = readFileSync(filePath, "utf-8");
-	const lines = content.split("\n");
-	const result: string[] = [];
-	let inMarker = false;
-
-	for (const line of lines) {
-		if (line.trim() === MARKER_START) {
-			inMarker = true;
-			continue;
-		}
-		if (line.trim() === MARKER_END) {
-			inMarker = false;
-			continue;
-		}
-		if (!inMarker) {
-			result.push(line);
-		}
-	}
-
-	// Remove leading blank lines left behind
-	let start = 0;
-	while (start < result.length && result[start].trim() === "") {
-		start++;
-	}
-
-	writeFileSync(filePath, result.slice(start).join("\n"));
 }

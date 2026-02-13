@@ -9,8 +9,6 @@ import { cmdLs } from "./commands/ls.ts";
 import { cmdNew } from "./commands/new.ts";
 import { cmdNuke } from "./commands/nuke.ts";
 import { cmdOpen } from "./commands/open.ts";
-import { cmdPromote } from "./commands/promote.ts";
-import { cmdSnap } from "./commands/snap.ts";
 import { cmdStatus } from "./commands/status.ts";
 import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
@@ -32,13 +30,9 @@ function printHelp() {
     exp new "description"     Clone project + open terminal
     exp new "desc" --from <id>  Clone from existing experiment
     exp ls [--detail]         List experiments (--detail for git status + divergence)
-    exp snap <id> "desc"      Create snapshot of experiment
-    exp snap list <id>        List snapshots
-    exp snap restore <id> <s> Restore experiment from snapshot
     exp open <id>             Open terminal in experiment
     exp diff <id>             What changed vs original (git-native when available)
     exp home                  Print original project path (use: cd $(exp home))
-    exp promote <id>          Experiment replaces original (with backup)
     exp trash <id>            Delete experiment
     exp nuke                  Delete ALL experiments
     exp cd <id>               Print path (use: cd $(exp cd 3))
@@ -95,10 +89,6 @@ async function main() {
 			case "d":
 				await cmdDiff(rest[0], config);
 				break;
-			case "promote":
-			case "p":
-				await cmdPromote(rest[0], config);
-				break;
 			case "trash":
 			case "rm":
 			case "t":
@@ -118,10 +108,6 @@ async function main() {
 			case "status":
 			case "st":
 				await cmdStatus(config);
-				break;
-			case "snap":
-			case "s":
-				await cmdSnap(rest, config);
 				break;
 			case "nuke":
 				await cmdNuke(config);
