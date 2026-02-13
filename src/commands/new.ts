@@ -6,6 +6,7 @@ import { ensureExpBase, nextNum, slugify, writeMetadata } from "../core/experime
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import { execCheck } from "../utils/shell.ts";
+import { startSpinner } from "../utils/spinner.ts";
 import { detectTerminal, openTerminalAt } from "../utils/terminal.ts";
 
 function fmt(ms: number): string {
@@ -27,10 +28,17 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	info(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
 
+	const spinner = startSpinner("Cloning via clonefile(2)...");
 	const tClone = performance.now();
 	const method = await cloneProject(root, expDir);
 	const cloneMs = performance.now() - tClone;
 
+	const methodLabel =
+		method === "clonefile" ? "clonefile(2)" :
+		method === "apfs" ? "APFS copy-on-write" :
+		"regular copy";
+
+	spinner.update("Writing metadata...");
 	writeMetadata(expDir, {
 		name: expName,
 		description,
@@ -39,22 +47,20 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		number: Number.parseInt(num, 10),
 	});
 
+	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num);
 
-	const methodLabel =
-		method === "clonefile" ? "clonefile(2)" :
-		method === "apfs" ? "APFS copy-on-write" :
-		"regular copy";
-
+	let cleanInfo = "";
 	if (config.clean.length > 0) {
+		spinner.update(`Cleaning ${config.clean.join(", ")}...`);
 		const tClean = performance.now();
 		cleanPostClone(expDir, config.clean);
 		const cleanMs = performance.now() - tClean;
-		ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))} (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`);
-	} else {
-		ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}`);
+		cleanInfo = ` (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`;
 	}
 
+	spinner.stop();
+	ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}${cleanInfo}`);
 	dim(`  source: ${root}`);
 	dim(`  exp:    ${expDir}`);
 
