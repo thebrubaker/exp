@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import { seedClaudeMd } from "../core/claude.ts";
 import { cleanPostClone, cloneProject } from "../core/clone.ts";
 import type { ExpConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { ensureExpBase, nextNum, resolveExp, slugify, writeMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
@@ -19,21 +20,38 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
 	const verbose = config.verbose;
 
-	// Parse --from flag
+	// Parse flags: --from, --terminal, --no-terminal
 	let fromId: string | null = null;
+	let terminalOverride: boolean | null = null; // null = auto-detect
 	const filteredArgs: string[] = [];
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === "--from") {
 			fromId = args[i + 1] ?? null;
 			i++; // skip next arg
+		} else if (args[i] === "--terminal") {
+			terminalOverride = true;
+		} else if (args[i] === "--no-terminal") {
+			terminalOverride = false;
 		} else {
 			filteredArgs.push(args[i]);
 		}
 	}
 	const description = filteredArgs.join(" ") || "experiment";
 
-	const root = getProjectRoot();
-	const name = getProjectName(root);
+	// Auto-detect: are we inside an experiment?
+	const ctx = detectContext();
+
+	// Determine the real project root
+	let root: string;
+	let name: string;
+	if (ctx.isExperiment) {
+		root = ctx.originalRoot;
+		name = getProjectName(root);
+	} else {
+		root = getProjectRoot();
+		name = getProjectName(root);
+	}
+
 	const slug = slugify(description);
 	const base = ensureExpBase(root, config);
 	const num = nextNum(base);
@@ -45,12 +63,18 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	let cloneSourceLabel = name;
 	let fromExpName: string | undefined;
 	if (fromId) {
+		// Explicit --from flag
 		const resolved = resolveExp(fromId, base);
 		if (!resolved) {
 			throw new Error(`Experiment not found: ${fromId}`);
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
+		cloneSourceLabel = fromExpName;
+	} else if (ctx.isExperiment) {
+		// Auto-detected: we're inside an experiment, fork from it
+		cloneSource = ctx.expDir;
+		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
 	}
 
@@ -99,8 +123,20 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		cleanMs = performance.now() - tClean;
 	}
 
-	// Open terminal
-	const terminalType = detectTerminal(config.terminal);
+	// Determine terminal behavior:
+	// 1. --terminal / --no-terminal flags (explicit override)
+	// 2. TTY detection (non-interactive = suppress terminal)
+	// 3. Config / auto-detect (normal behavior)
+	const isInteractive = process.stdin.isTTY ?? false;
+	let shouldOpenTerminal: boolean;
+
+	if (terminalOverride !== null) {
+		shouldOpenTerminal = terminalOverride;
+	} else {
+		shouldOpenTerminal = isInteractive;
+	}
+
+	const terminalType = shouldOpenTerminal ? detectTerminal(config.terminal) : "none";
 	let terminalMs = 0;
 	if (terminalType !== "none") {
 		spinner.update("Opening terminal...");
@@ -133,6 +169,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		ok(cloneDetail);
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
+		if (ctx.isExperiment && !fromId) {
+			dim(`  (auto-detected: forking from experiment ${ctx.expName})`);
+		}
 
 		if (branchName) {
 			ok(`Branch: ${c.cyan(branchName)}`);
