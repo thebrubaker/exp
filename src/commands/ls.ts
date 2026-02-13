@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
 import { getExpBase, readMetadata } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
@@ -18,15 +19,23 @@ interface ExpEntry {
 interface ExpDetailEntry extends ExpEntry {
 	gitStatus: string;
 	fileDivergence: string;
+	divergedSize: string;
 }
 
 const DIFF_EXCLUDES = ["node_modules", ".git", ".exp", ".next", ".turbo", "dist", ".DS_Store"];
 
 export async function cmdLs(args: string[], config: ExpConfig) {
+	const all = args.includes("--all");
+	const detail = args.includes("--detail");
+
+	if (all) {
+		await printGlobal(detail, config);
+		return;
+	}
+
 	const root = getProjectRoot();
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
-	const detail = args.includes("--detail");
 
 	if (!existsSync(base)) {
 		dim(`No experiments for ${name}. Run: exp new "my idea"`);
@@ -45,18 +54,21 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 	if (detail) {
 		await printDetail(entries, base, root, name);
 	} else {
-		await printCompact(entries, base, name);
+		await printCompact(entries, base, root, name);
 	}
 }
 
-async function printCompact(entries: { name: string }[], base: string, projectName: string) {
-	// Gather sizes in parallel
-	const sizePromises = entries.map((entry) => {
+async function printCompact(
+	entries: { name: string }[],
+	base: string,
+	sourceRoot: string,
+	projectName: string,
+) {
+	// Gather diverged sizes in parallel
+	const sizePromises = entries.map(async (entry) => {
 		const expDir = `${base}/${entry.name}`;
-		return exec(["du", "-sh", expDir]).then((r) => ({
-			name: entry.name,
-			size: r.success ? r.stdout.split("\t")[0].trim() : "?",
-		}));
+		const size = await getDivergedSize(sourceRoot, expDir);
+		return { name: entry.name, size };
 	});
 	const sizes = await Promise.all(sizePromises);
 	const sizeMap = new Map(sizes.map((s) => [s.name, s.size]));
@@ -88,7 +100,7 @@ async function printCompact(entries: { name: string }[], base: string, projectNa
 		const nameCol = c.bold(row.dirName.padEnd(maxName));
 		const descCol = c.dim(row.description.padEnd(maxDesc));
 		const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
-		const sizeCol = c.dim(row.size.padStart(6));
+		const sizeCol = c.dim(`${row.size} extra`.padStart(12));
 
 		console.log(`  ${nameCol}  ${descCol}  ${timeCol}  ${sizeCol}`);
 	}
@@ -107,10 +119,11 @@ async function printDetail(
 		const expDir = `${base}/${entry.name}`;
 		const meta = readMetadata(expDir);
 
-		const [sizeResult, gitResult, diffResult] = await Promise.all([
+		const [sizeResult, gitResult, diffResult, divergedSize] = await Promise.all([
 			exec(["du", "-sh", expDir]),
 			getGitStatus(expDir),
 			getFileDivergence(sourceRoot, expDir),
+			getDivergedSize(sourceRoot, expDir),
 		]);
 
 		return {
@@ -122,6 +135,7 @@ async function printDetail(
 			size: sizeResult.success ? sizeResult.stdout.split("\t")[0].trim() : "?",
 			gitStatus: gitResult,
 			fileDivergence: diffResult,
+			divergedSize,
 		} satisfies ExpDetailEntry;
 	});
 
@@ -135,11 +149,130 @@ async function printDetail(
 		const time = d.created ? timeAgo(d.created) : "?";
 
 		console.log(`  ${c.bold(d.dirName)} ${c.dim("·")} ${d.description}`);
-		console.log(`    ${c.dim(`Created ${time} · ${d.size}`)}`);
+		console.log(
+			`    ${c.dim(`Created ${time} · ${d.size} apparent · ${d.divergedSize} diverged`)}`,
+		);
 		console.log(`    ${c.dim(`Git: ${d.gitStatus}`)}`);
 		console.log(`    ${c.dim(`Files: ${d.fileDivergence}`)}`);
 		console.log();
 	}
+}
+
+async function printGlobal(detail: boolean, config: ExpConfig) {
+	// Scan common locations for .exp-* directories
+	const scanPaths = [
+		process.env.HOME ? `${process.env.HOME}/Code` : null,
+		process.env.HOME ? `${process.env.HOME}/Projects` : null,
+		process.env.HOME ? `${process.env.HOME}/Developer` : null,
+		process.env.HOME ? `${process.env.HOME}/src` : null,
+	].filter(Boolean) as string[];
+
+	// Also check config for custom root
+	if (config.root) {
+		scanPaths.push(config.root);
+	}
+
+	let found = false;
+
+	for (const scanPath of scanPaths) {
+		if (!existsSync(scanPath)) continue;
+
+		const entries = readdirSync(scanPath, { withFileTypes: true });
+		for (const entry of entries) {
+			if (!entry.isDirectory() || !entry.name.startsWith(".exp-")) continue;
+
+			const projectName = entry.name.replace(/^\.exp-/, "");
+			const base = join(scanPath, entry.name);
+			const sourceRoot = join(scanPath, projectName);
+
+			const experiments = readdirSync(base, { withFileTypes: true })
+				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+				.sort((a, b) => a.name.localeCompare(b.name));
+
+			if (experiments.length === 0) continue;
+
+			found = true;
+
+			console.log();
+			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${experiments.length} experiments)`)}`);
+
+			for (const exp of experiments) {
+				const expDir = join(base, exp.name);
+				const meta = readMetadata(expDir);
+				const desc = meta?.description ?? "";
+				const time = meta?.created ? timeAgo(meta.created) : "?";
+				console.log(`  ${c.bold(exp.name)}  ${c.dim(desc)}  ${c.dim(time)}`);
+			}
+		}
+	}
+
+	if (!found) {
+		dim("No experiments found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
+	}
+
+	console.log();
+}
+
+async function getDivergedSize(sourceRoot: string, expDir: string): Promise<string> {
+	// Run diff -rq to find files that differ
+	const excludeArgs = DIFF_EXCLUDES.flatMap((ex) => ["--exclude", ex]);
+	const result = await exec(["diff", "-rq", ...excludeArgs, sourceRoot, expDir]);
+
+	// diff returns 1 when files differ, 0 when identical, 2 on error
+	if (result.exitCode === 2 || !result.stdout.trim()) {
+		return "~0B";
+	}
+
+	const lines = result.stdout.trim().split("\n").filter(Boolean);
+	let totalBytes = 0;
+
+	for (const line of lines) {
+		// Lines look like:
+		// "Files /source/foo.ts and /exp/foo.ts differ"
+		// "Only in /exp/: newfile.ts"
+		// "Only in /exp/subdir: file.ts"
+
+		// For "differ" lines, get the experiment file size
+		const differMatch = line.match(/^Files .+ and (.+) differ$/);
+		if (differMatch) {
+			const filePath = differMatch[1];
+			try {
+				const stat = Bun.file(filePath);
+				totalBytes += stat.size;
+			} catch {
+				// Skip if can't stat
+			}
+			continue;
+		}
+
+		// For "Only in <exp>" lines, get the file size
+		// Format: "Only in /exp/path: filename"
+		const onlyInMatch = line.match(/^Only in (.+): (.+)$/);
+		if (onlyInMatch) {
+			const dir = onlyInMatch[1];
+			const fileName = onlyInMatch[2];
+			// Only count files in the experiment, not files only in source
+			if (dir.startsWith(expDir) || dir === expDir) {
+				const filePath = `${dir}/${fileName}`;
+				try {
+					const stat = Bun.file(filePath);
+					totalBytes += stat.size;
+				} catch {
+					// Might be a directory — skip
+				}
+			}
+		}
+	}
+
+	return formatBytes(totalBytes);
+}
+
+export function formatBytes(bytes: number): string {
+	if (bytes === 0) return "~0B";
+	if (bytes < 1024) return `~${bytes}B`;
+	if (bytes < 1024 * 1024) return `~${(bytes / 1024).toFixed(1)}KB`;
+	if (bytes < 1024 * 1024 * 1024) return `~${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+	return `~${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }
 
 async function getGitStatus(expDir: string): Promise<string> {
