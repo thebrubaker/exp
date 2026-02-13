@@ -61,7 +61,7 @@ export async function cmdInit(_config: ExpConfig) {
 
 	console.log();
 
-	// ── Existing config ──
+	// ── Existing config check ──
 	if (hasExisting && Object.keys(existing).length > 0) {
 		warn("Existing config found:");
 		for (const [key, value] of Object.entries(existing)) {
@@ -80,12 +80,62 @@ export async function cmdInit(_config: ExpConfig) {
 		console.log();
 	}
 
-	// ── Education ──
-	info(`${c.bold("exp")} clones your entire project instantly via APFS copy-on-write.`);
-	dim(
-		"  Unlike git worktrees, you get node_modules, .env, everything. Near-zero disk cost until files diverge.",
+	// ── The Pitch ──
+	console.log(c.bold("  exp — instant experiment forking\n"));
+
+	console.log("  You know the feeling. You're deep in a feature, everything's");
+	console.log('  working, and then you think: "what if I tried a completely');
+	console.log('  different approach?"\n');
+
+	console.log("  With git, that means stash, branch, context-switch, lose your");
+	console.log("  flow. With exp, you just fork:\n");
+
+	// Show the workflow
+	console.log(c.dim("  ┌─────────────────────────────────────────────────┐"));
+	console.log(
+		`${c.dim("  │")}  ${c.cyan('$ exp new "try redis sessions"')}               ${c.dim("│")}`,
 	);
+	console.log(
+		`${c.dim("  │")}  ${c.green("✓")} 001-try-redis-sessions cloned in 48ms       ${c.dim("│")}`,
+	);
+	console.log(`${c.dim("  │")}    branch: exp/try-redis-sessions              ${c.dim("│")}`);
+	console.log(`${c.dim("  │")}                                                ${c.dim("│")}`);
+	console.log(
+		`${c.dim("  │")}  ${c.dim("New terminal opens. Full project clone.")}        ${c.dim("│")}`,
+	);
+	console.log(
+		`${c.dim("  │")}  ${c.dim("node_modules, .env, .git — everything.")}         ${c.dim("│")}`,
+	);
+	console.log(
+		`${c.dim("  │")}  ${c.dim("Near-zero disk. Ready to go.")}                   ${c.dim("│")}`,
+	);
+	console.log(c.dim("  └─────────────────────────────────────────────────┘"));
 	console.log();
+
+	// ── Human Story ──
+	info(c.bold("For you"));
+	console.log("  You're on a branch with unstaged changes. You need to update");
+	console.log("  turbo. That's annoying — you don't want to lose your context.");
+	console.log(`  ${c.cyan('exp new "turbo upgrade"')} and a terminal opens, ready to go.`);
+	console.log("  Your original project? Untouched. Merge via git when done.");
+	console.log();
+
+	// ── AI Story ──
+	info(c.bold("For AI agents"));
+	console.log("  Claude Code agents working in parallel need isolated workspaces.");
+	console.log("  Each agent gets a full APFS clone — zero conflicts, zero");
+	console.log("  orchestration overhead. Each commits to its own branch.");
+	console.log("  The orchestrator merges via git, not file juggling.");
+	console.log();
+
+	// ── How it works (brief) ──
+	dim("  How: macOS APFS clonefile(2) — copy-on-write at the filesystem level.");
+	dim("  The clone shares all blocks with the original until files diverge.");
+	dim("  A 2GB project clones in ~50ms using ~0 extra disk.");
+	console.log();
+
+	// ── Now configure ──
+	console.log(c.bold("  Let's set up your preferences.\n"));
 
 	// ── Terminal preference ──
 	const detected = detectTerminal();
@@ -98,7 +148,6 @@ export async function cmdInit(_config: ExpConfig) {
 		},
 	];
 
-	// Add other options (skip the detected one to avoid duplicates)
 	const allTerminals: TerminalType[] = ["ghostty", "iterm", "warp", "tmux", "terminal", "none"];
 	for (const t of allTerminals) {
 		if (t !== detected) {
@@ -107,7 +156,7 @@ export async function cmdInit(_config: ExpConfig) {
 	}
 
 	const terminal = await select<TerminalType>({
-		message: `Open new ${detectedLabel} windows for experiments?`,
+		message: "Terminal for new experiments?",
 		choices: terminalChoices,
 	});
 
@@ -187,16 +236,17 @@ export async function cmdInit(_config: ExpConfig) {
 
 	writeConfig(values);
 
-	// ── Summary ──
+	// ── Strong ending ──
 	console.log();
-	ok(`Config written to ${c.cyan(CONFIG_PATH)}`);
+	ok("You're set up!");
 	console.log();
-	for (const [key, value] of Object.entries(values)) {
-		dim(`  ${key} = ${value}`);
-	}
-
-	// ── Next steps ──
+	info("Quick reference:");
+	console.log(`  ${c.cyan('exp new "description"')}    Fork the project`);
+	console.log(`  ${c.cyan("exp ls")}                   See your experiments`);
+	console.log(`  ${c.cyan("exp diff <id>")}            What changed`);
+	console.log(`  ${c.cyan("exp trash <id>")}           Clean up when done`);
 	console.log();
-	info(`Ready! Try: ${c.cyan('exp new "my first experiment"')}`);
+	dim("  Experiments are just git branches in isolated directories.");
+	dim("  Commit, push, merge via PR — then trash the clone.");
 	console.log();
 }
