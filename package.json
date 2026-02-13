@@ -27,5 +27,13 @@
   },
   "keywords": ["cli", "experiment", "apfs", "clone", "dev-tools"],
   "author": "Joel Brubaker",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thebrubaker/exp.git"
+  },
+  "homepage": "https://github.com/thebrubaker/exp",
+  "bugs": {
+    "url": "https://github.com/thebrubaker/exp/issues"
+  }
 }
