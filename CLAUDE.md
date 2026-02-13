@@ -1,10 +1,10 @@
 # CLAUDE.md — exp
 
-Version: v0.2.0
+Version: v0.3.0
 
 ## Overview
 
-`exp` is a CLI tool for instant experiment forking via macOS APFS clonefile. TypeScript/Bun rewrite of a bash prototype. Compiled to a standalone binary.
+`exp` is a CLI tool for instant experiment forking via macOS APFS clonefile. Fast worktrees + convention layer for git. TypeScript/Bun, compiled to a standalone binary.
 
 ## Development Commands
 
@@ -29,13 +29,14 @@ ln -sf $(pwd)/dist/exp ~/.local/bin/exp
 src/
 ├── exp.ts              # Entry point (shebang, arg routing)
 ├── commands/           # One file per command
-│   ├── new.ts          # Clone + metadata + seed CLAUDE.md + terminal
-│   ├── ls.ts           # List experiments
-│   ├── diff.ts         # Recursive diff vs original
-│   ├── promote.ts      # Experiment replaces original (with backup)
+│   ├── new.ts          # Clone + metadata + seed + auto-branch + terminal
+│   ├── ls.ts           # List experiments (compact/detail, --all for global)
+│   ├── diff.ts         # Git-native diff vs original (--detail for full)
+│   ├── home.ts         # Print original project path (from inside experiment)
+│   ├── init.ts         # Interactive onboarding wizard
 │   ├── trash.ts        # Delete experiment
 │   ├── open.ts         # Open terminal in experiment
-│   ├── cd.ts           # Print path
+│   ├── cd.ts           # Print experiment path
 │   ├── status.ts       # Project info
 │   ├── nuke.ts         # Delete ALL experiments
 │   └── clean-export.ts # Remove /export files
@@ -43,21 +44,29 @@ src/
 │   ├── config.ts       # EXP_* env vars
 │   ├── project.ts      # Project root detection
 │   ├── experiment.ts   # Resolve, numbering, metadata
+│   ├── context.ts      # Detect experiment vs project context
 │   ├── clone.ts        # APFS clone with fallback
-│   └── claude.ts       # CLAUDE.md seeding + stripping
+│   └── claude.ts       # CLAUDE.md seeding
 └── utils/              # Shared helpers
     ├── colors.ts       # Chalk colors + output helpers
     ├── shell.ts        # Bun.spawn wrappers (exec, execCheck, execOrThrow)
     └── terminal.ts     # Detect + open terminal (Ghostty, iTerm, tmux, Terminal.app)
+
+commands/
+└── side-quest.md       # Claude Code /side-quest command
 ```
 
 ## Key Patterns
 
 - **Shell commands:** Always use arrays with `exec()` from `utils/shell.ts`, never template strings
 - **Terminal opening:** Ghostty uses `open -na` for new windows; iTerm/Terminal use osascript; tmux uses native commands
+- **TTY detection:** `process.stdin.isTTY` auto-suppresses terminal when AI/scripts call exp. Override with `--terminal`/`--no-terminal`
+- **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables fork-from-experiment and `exp home`
 - **CLAUDE.md seeding:** Prepends between `<!-- exp:start -->` and `<!-- exp:end -->` HTML comment markers
 - **Experiment resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
-- **Confirmations:** Interactive prompts via `@inquirer/prompts` (promote, trash, nuke)
+- **Auto-branch:** `exp new` creates `exp/<slug>` git branch for PR-ready workflow
+- **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
+- **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
 
 ## Reference
 
