@@ -49,6 +49,9 @@ function printHelp() {
       open_editor      EXP_OPEN_EDITOR    code | cursor | zed
       clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
 
+  FLAGS
+    --verbose            Show timing, paths, and method details
+
   HOW IT WORKS
     macOS clonefile(2) syscall: atomic copy-on-write clone of entire directory.
     .env, .git, node_modules, exports — everything comes along, near-zero disk.
@@ -56,10 +59,13 @@ function printHelp() {
 }
 
 async function main() {
-	const args = process.argv.slice(2);
+	const rawArgs = process.argv.slice(2);
+	const verbose = rawArgs.includes("--verbose") || rawArgs.includes("--debug") || process.env.EXP_DEBUG === "1";
+	const args = rawArgs.filter((a) => a !== "--verbose" && a !== "--debug");
 	const cmd = args[0] ?? "help";
 	const rest = args.slice(1);
 	const config = loadConfig();
+	config.verbose = verbose;
 
 	try {
 		switch (cmd) {

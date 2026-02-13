@@ -7,6 +7,7 @@ export interface ExpConfig {
 	terminal: TerminalType | "auto";
 	openEditor: string | null;
 	clean: string[];
+	verbose: boolean;
 }
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
@@ -34,6 +35,7 @@ export function loadConfig(): ExpConfig {
 		terminal: (env.EXP_TERMINAL || file.terminal || "auto") as TerminalType | "auto",
 		openEditor: env.EXP_OPEN_EDITOR || file.open_editor || null,
 		clean,
+		verbose: false,
 	};
 }
 

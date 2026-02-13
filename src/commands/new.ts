@@ -16,6 +16,7 @@ function fmt(ms: number): string {
 
 export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
+	const verbose = config.verbose;
 
 	const description = args.join(" ") || "experiment";
 	const root = getProjectRoot();
@@ -26,9 +27,8 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const base = ensureExpBase(root, config);
 	const expDir = `${base}/${expName}`;
 
-	info(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
+	const spinner = startSpinner(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
 
-	const spinner = startSpinner("Cloning via clonefile(2)...");
 	const tClone = performance.now();
 	const method = await cloneProject(root, expDir);
 	const cloneMs = performance.now() - tClone;
@@ -50,43 +50,27 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num);
 
-	let cleanInfo = "";
+	let cleanMs = 0;
 	if (config.clean.length > 0) {
 		spinner.update(`Cleaning ${config.clean.join(", ")}...`);
 		const tClean = performance.now();
 		cleanPostClone(expDir, config.clean);
-		const cleanMs = performance.now() - tClean;
-		cleanInfo = ` (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`;
-	}
-
-	spinner.stop();
-	ok(`Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}${cleanInfo}`);
-	dim(`  source: ${root}`);
-	dim(`  exp:    ${expDir}`);
-
-	// Port conflict warning
-	const hasPackageJson = existsSync(`${root}/package.json`);
-	const hasNextConfig =
-		existsSync(`${root}/next.config.js`) ||
-		existsSync(`${root}/next.config.mjs`) ||
-		existsSync(`${root}/next.config.ts`);
-
-	if (hasPackageJson || hasNextConfig) {
-		warn("If dev server is running, the experiment may need a different port");
-		dim("  e.g. PORT=3001 pnpm dev");
+		cleanMs = performance.now() - tClean;
 	}
 
 	// Open terminal
 	const terminalType = detectTerminal(config.terminal);
+	let terminalMs = 0;
 	if (terminalType !== "none") {
+		spinner.update("Opening terminal...");
 		const tTerm = performance.now();
 		await openTerminalAt(expDir, expName, terminalType);
-		ok(`Terminal open (${fmt(performance.now() - tTerm)})`);
-	} else {
-		ok(`Ready: cd '${expDir}'`);
+		terminalMs = performance.now() - tTerm;
 	}
 
-	// Open editor
+	spinner.stop();
+
+	// Open editor (silent)
 	if (config.openEditor) {
 		const hasEditor = await execCheck(["which", config.openEditor]);
 		if (hasEditor) {
@@ -95,7 +79,47 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 	}
 
-	console.log();
-	dim(`  total: ${fmt(performance.now() - t0)}`);
-	dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
+	const totalMs = performance.now() - t0;
+
+	// ── Output ──
+
+	if (verbose) {
+		info(`Cloning ${c.cyan(name)} → ${c.magenta(expName)}`);
+
+		let cloneDetail = `Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}`;
+		if (config.clean.length > 0) {
+			cloneDetail += ` (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`;
+		}
+		ok(cloneDetail);
+		dim(`  source: ${root}`);
+		dim(`  exp:    ${expDir}`);
+
+		const hasNextConfig =
+			existsSync(`${root}/next.config.js`) ||
+			existsSync(`${root}/next.config.mjs`) ||
+			existsSync(`${root}/next.config.ts`);
+		if (existsSync(`${root}/package.json`) || hasNextConfig) {
+			warn("If dev server is running, the experiment may need a different port");
+			dim("  e.g. PORT=3001 pnpm dev");
+		}
+
+		if (terminalType !== "none") {
+			ok(`Terminal open (${fmt(terminalMs)})`);
+		} else {
+			ok(`Ready: cd '${expDir}'`);
+		}
+
+		console.log();
+		dim(`  total: ${fmt(totalMs)}`);
+		dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
+	} else {
+		ok(`${c.bold(expName)} ${c.dim(`cloned in ${fmt(totalMs)}`)}`);
+
+		if (terminalType === "none") {
+			dim(`  cd ${expDir}`);
+		}
+
+		console.log();
+		dim(`  exp diff ${num} · exp promote ${num} · exp trash ${num}`);
+	}
 }
