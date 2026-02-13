@@ -8,6 +8,10 @@ export interface ExpMetadata {
 	source: string;
 	created: string;
 	number: number;
+	// Lifecycle tracking
+	status?: "active" | "promoted" | "trashed";
+	promotedAt?: string;
+	trashedAt?: string;
 }
 
 export function getExpBase(projectRoot: string, config: ExpConfig): string {
