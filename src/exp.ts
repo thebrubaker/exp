@@ -3,6 +3,7 @@
 import { cmdCd } from "./commands/cd.ts";
 import { cmdCleanExport } from "./commands/clean-export.ts";
 import { cmdDiff } from "./commands/diff.ts";
+import { cmdHome } from "./commands/home.ts";
 import { cmdInit } from "./commands/init.ts";
 import { cmdLs } from "./commands/ls.ts";
 import { cmdNew } from "./commands/new.ts";
@@ -35,7 +36,8 @@ function printHelp() {
     exp snap list <id>        List snapshots
     exp snap restore <id> <s> Restore experiment from snapshot
     exp open <id>             Open terminal in experiment
-    exp diff <id>             What changed vs original
+    exp diff <id>             What changed vs original (git-native when available)
+    exp home                  Print original project path (use: cd $(exp home))
     exp promote <id>          Experiment replaces original (with backup)
     exp trash <id>            Delete experiment
     exp nuke                  Delete ALL experiments
@@ -108,6 +110,10 @@ async function main() {
 				break;
 			case "cd":
 				cmdCd(rest[0], config);
+				break;
+			case "home":
+			case "h":
+				cmdHome(config);
 				break;
 			case "status":
 			case "st":
