@@ -6,9 +6,7 @@ import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, err, ok, warn } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
 
-export async function cmdNuke(args: string[], config: ExpConfig) {
-	const force = args.includes("--force") || args.includes("-y");
-
+export async function cmdNuke(_args: string[], config: ExpConfig) {
 	const root = getProjectRoot();
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
@@ -18,31 +16,24 @@ export async function cmdNuke(args: string[], config: ExpConfig) {
 		return;
 	}
 
+	if (!process.stdin.isTTY) {
+		err(`exp nuke requires interactive confirmation — a human must run this command.`);
+		err(`To delete individual forks programmatically, use: exp trash <id> --force`);
+		process.exit(1);
+	}
+
 	const entries = readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory());
+	const sizeResult = await exec(["du", "-sh", base]);
+	const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
 
-	if (!force) {
-		if (!process.stdin.isTTY) {
-			err(`Cannot confirm interactively (no TTY). Use --force or -y to skip confirmation.`);
-			process.exit(1);
-		}
+	warn(`Delete ALL ${entries.length} forks for ${c.cyan(name)}? (${size})`);
 
-		const sizeResult = await exec(["du", "-sh", base]);
-		const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
-		warn(`Delete ALL ${entries.length} forks for ${c.cyan(name)}? (${size})`);
-
-		const answer = await input({ message: "Type project name to confirm:" });
-		if (answer !== name) {
-			dim("Cancelled.");
-			return;
-		}
+	const answer = await input({ message: "Type project name to confirm:" });
+	if (answer !== name) {
+		dim("Cancelled.");
+		return;
 	}
 
-	const count = entries.length;
 	rmSync(base, { recursive: true, force: true });
-
-	if (config.json) {
-		console.log(JSON.stringify({ nuked: name, count }));
-	} else {
-		ok(`Nuked all forks for ${name}`);
-	}
+	ok(`Nuked all forks for ${name}`);
 }

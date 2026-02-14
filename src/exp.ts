@@ -34,7 +34,7 @@ function printHelp() {
     exp diff <id>             What changed vs original (git-native when available)
     exp home                  Print original project path (use: cd $(exp home))
     exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
-    exp nuke [--force]        Delete ALL forks (--force/-y skips confirmation)
+    exp nuke                  Delete ALL forks (interactive only — requires human)
     exp cd <id>               Print path (use: cd $(exp cd 3))
     exp status                Project info
     exp clean-export          Remove /export files from original after cloning
