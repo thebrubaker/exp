@@ -7,7 +7,7 @@ Instant directory forking via macOS APFS clonefile -- git worktrees but dumber a
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="demo.gif" alt="exp demo" width="800" />
+  <img src="demos/demo.gif" alt="exp demo" width="800" />
 </p>
 
 ## Why
@@ -19,6 +19,10 @@ No shared state. No branch switching. No cleanup. Just fork, work, merge via git
 ## The unlock: AI agent orchestration
 
 When Claude Code needs to work on three things at once, each agent needs its own isolated workspace. `exp` gives every agent a full directory fork with its own git branch — zero conflicts, near-zero cost.
+
+<p align="center">
+  <img src="demos/demo-orchestration.gif" alt="Claude Code orchestrating parallel agents with exp" width="800" />
+</p>
 
 ```bash
 # Claude dispatches three agents, each in their own fork

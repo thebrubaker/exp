@@ -72,4 +72,4 @@ commands/
 
 The original bash prototype lives at `reference/exp.bash` — this is the spec the TypeScript port was built from.
 
-@import PHILOSOPHY.md
+@PHILOSOPHY.md
