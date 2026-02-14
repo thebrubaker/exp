@@ -5,7 +5,7 @@ import { dim } from "../utils/colors.ts";
 export function cmdHome(_config: ExpConfig) {
 	const ctx = detectContext();
 
-	if (!ctx.isExperiment) {
+	if (!ctx.isFork) {
 		dim("Already at project root.");
 		return;
 	}

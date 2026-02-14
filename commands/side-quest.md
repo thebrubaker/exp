@@ -1,17 +1,17 @@
 ---
-description: Fork an experiment from the current project using exp
+description: Fork the current project using exp
 argument-hint: <description of what to try>
 ---
 
-# Side Quest — Fork an Experiment
+# Side Quest — Fork the Project
 
-You are forking the current project into a new experiment using `exp`. This creates an instant APFS copy-on-write clone — everything is copied (node_modules, .env, .git, build cache) with near-zero disk overhead until files diverge.
+You are forking the current project into a new fork using `exp`. This creates an instant APFS copy-on-write clone — everything is copied (node_modules, .env, .git, build cache) with near-zero disk overhead until files diverge.
 
 ## Arguments
 
-The experiment description: `$ARGUMENTS`
+The fork description: `$ARGUMENTS`
 
-This becomes the experiment name (slugified) and gets seeded into the clone's CLAUDE.md as the goal.
+This becomes the fork name (slugified) and gets seeded into the clone's CLAUDE.md as the goal.
 
 ## Execution
 
@@ -19,9 +19,9 @@ This becomes the experiment name (slugified) and gets seeded into the clone's CL
 
 Run `which exp`. If not found, tell the user:
 - `exp` is not installed. Install it from https://github.com/digitalpine/exp
-- Or they can manually clone: `cp -c -r . ../experiment` (macOS APFS only)
+- Or they can manually clone: `cp -c -r . ../fork` (macOS APFS only)
 
-### 2. Create the experiment
+### 2. Create the fork
 
 ```bash
 EXP_TERMINAL=none exp new "$ARGUMENTS"
@@ -31,15 +31,15 @@ EXP_TERMINAL=none exp new "$ARGUMENTS"
 
 ### 3. Parse the output
 
-The output contains the experiment name (e.g., `001-try-redis`) and path. Capture both.
+The output contains the fork name (e.g., `001-try-redis`) and path. Capture both.
 
 ### 4. Report back
 
-Tell the user the experiment is ready. Include:
+Tell the user the fork is ready. Include:
 
-- **Experiment path** — the full path to the clone
+- **Fork path** — the full path to the clone
 - **Open it** — `cd <path> && claude`
-- **Check on it later** — `exp ls` to see all experiments, `exp diff <num>` to see what changed
+- **Check on it later** — `exp ls` to see all forks, `exp diff <num>` to see what changed
 - **Bring it back** — commit, push the branch, merge via git/PR
 - **Discard it** — `exp trash <num>` to delete the clone
 
@@ -47,4 +47,4 @@ Keep the output concise. The user wants to know it worked and how to get there.
 
 ## Begin
 
-Create the experiment with the provided description.
+Create the fork with the provided description.

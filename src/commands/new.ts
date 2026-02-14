@@ -36,15 +36,15 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			filteredArgs.push(args[i]);
 		}
 	}
-	const description = filteredArgs.join(" ") || "experiment";
+	const description = filteredArgs.join(" ") || "fork";
 
-	// Auto-detect: are we inside an experiment?
+	// Auto-detect: are we inside a fork?
 	const ctx = detectContext();
 
 	// Determine the real project root
 	let root: string;
 	let name: string;
-	if (ctx.isExperiment) {
+	if (ctx.isFork) {
 		root = ctx.originalRoot;
 		name = getProjectName(root);
 	} else {
@@ -66,13 +66,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		// Explicit --from flag
 		const resolved = resolveExp(fromId, base);
 		if (!resolved) {
-			throw new Error(`Experiment not found: ${fromId}`);
+			throw new Error(`Fork not found: ${fromId}`);
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
-	} else if (ctx.isExperiment) {
-		// Auto-detected: we're inside an experiment, fork from it
+	} else if (ctx.isFork) {
+		// Auto-detected: we're inside a fork, fork from it
 		cloneSource = ctx.expDir;
 		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
@@ -188,8 +188,8 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		ok(cloneDetail);
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
-		if (ctx.isExperiment && !fromId) {
-			dim(`  (auto-detected: forking from experiment ${ctx.expName})`);
+		if (ctx.isFork && !fromId) {
+			dim(`  (auto-detected: forking from ${ctx.expName})`);
 		}
 
 		if (branchName) {
@@ -201,7 +201,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			existsSync(`${root}/next.config.mjs`) ||
 			existsSync(`${root}/next.config.ts`);
 		if (existsSync(`${root}/package.json`) || hasNextConfig) {
-			warn("If dev server is running, the experiment may need a different port");
+			warn("If dev server is running, the fork may need a different port");
 			dim("  e.g. PORT=3001 pnpm dev");
 		}
 

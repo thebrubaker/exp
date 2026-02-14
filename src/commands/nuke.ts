@@ -12,7 +12,7 @@ export async function cmdNuke(config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim(`No experiments for ${name}`);
+		dim(`No forks for ${name}`);
 		return;
 	}
 
@@ -20,7 +20,7 @@ export async function cmdNuke(config: ExpConfig) {
 	const sizeResult = await exec(["du", "-sh", base]);
 	const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
 
-	warn(`Delete ALL ${entries.length} experiments for ${c.cyan(name)}? (${size})`);
+	warn(`Delete ALL ${entries.length} forks for ${c.cyan(name)}? (${size})`);
 
 	const answer = await input({ message: "Type project name to confirm:" });
 	if (answer !== name) {
@@ -29,5 +29,5 @@ export async function cmdNuke(config: ExpConfig) {
 	}
 
 	rmSync(base, { recursive: true, force: true });
-	ok(`Nuked all experiments for ${name}`);
+	ok(`Nuked all forks for ${name}`);
 }

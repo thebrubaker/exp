@@ -88,7 +88,7 @@ jobs:
           # frozen_string_literal: true
 
           class Exp < Formula
-            desc "Instant experiment forking via macOS APFS clonefile"
+            desc "Instant project forking via macOS APFS clonefile"
             homepage "https://github.com/thebrubaker/exp"
             version "${VERSION}"
             license "MIT"

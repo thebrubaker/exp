@@ -140,12 +140,12 @@ describe("CLAUDE.md lineage info", () => {
 	test("includes fork info when fromExp is provided", () => {
 		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002", "001-try-redis");
 		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).toContain("Forked from experiment `001-try-redis`");
+		expect(content).toContain("Forked from `001-try-redis`");
 	});
 
 	test("does not include fork info without fromExp", () => {
 		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002");
 		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).not.toContain("Forked from experiment");
+		expect(content).not.toContain("Forked from `");
 	});
 });

@@ -85,7 +85,7 @@ async function gitDiff(
 	expName: string,
 	config: ExpConfig,
 ) {
-	// Get branch name in experiment
+	// Get branch name in fork
 	const branchResult = await exec(["git", "-C", expDir, "branch", "--show-current"]);
 	const branch = branchResult.stdout.trim() || "detached HEAD";
 
@@ -238,7 +238,7 @@ async function jsonDiff(
 	console.log(
 		JSON.stringify({
 			project: name,
-			experiment: expName,
+			fork: expName,
 			path: expDir,
 			branch,
 			uncommitted,

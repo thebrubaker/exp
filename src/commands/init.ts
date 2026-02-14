@@ -81,7 +81,7 @@ export async function cmdInit(_config: ExpConfig) {
 	}
 
 	// ── The Pitch ──
-	console.log(c.bold("  exp — instant experiment forking\n"));
+	console.log(c.bold("  exp — instant project forking\n"));
 
 	console.log("  You know the feeling. You're deep in a feature, everything's");
 	console.log('  working, and then you think: "what if I tried a completely');
@@ -156,7 +156,7 @@ export async function cmdInit(_config: ExpConfig) {
 	}
 
 	const terminal = await select<TerminalType>({
-		message: "Terminal for new experiments?",
+		message: "Terminal for new forks?",
 		choices: terminalChoices,
 	});
 
@@ -173,7 +173,7 @@ export async function cmdInit(_config: ExpConfig) {
 		editorChoices.push({ name: "None", value: "none" });
 
 		const editorChoice = await select<string>({
-			message: "Auto-open experiments in an editor?",
+			message: "Auto-open forks in an editor?",
 			choices: editorChoices,
 		});
 
@@ -242,11 +242,11 @@ export async function cmdInit(_config: ExpConfig) {
 	console.log();
 	info("Quick reference:");
 	console.log(`  ${c.cyan('exp new "description"')}    Fork the project`);
-	console.log(`  ${c.cyan("exp ls")}                   See your experiments`);
+	console.log(`  ${c.cyan("exp ls")}                   See your forks`);
 	console.log(`  ${c.cyan("exp diff <id>")}            What changed`);
 	console.log(`  ${c.cyan("exp trash <id>")}           Clean up when done`);
 	console.log();
-	dim("  Experiments are just git branches in isolated directories.");
+	dim("  Forks are isolated project copies with their own git branch.");
 	dim("  Commit, push, merge via PR — then trash the clone.");
 	console.log();
 }

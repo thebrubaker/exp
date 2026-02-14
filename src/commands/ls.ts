@@ -47,7 +47,7 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim(`No experiments for ${name}. Run: exp new "my idea"`);
+		dim(`No forks for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
@@ -56,7 +56,7 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		.sort((a, b) => a.name.localeCompare(b.name));
 
 	if (entries.length === 0) {
-		dim(`No experiments for ${name}. Run: exp new "my idea"`);
+		dim(`No forks for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
@@ -102,7 +102,7 @@ async function printCompact(
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
 	console.log();
-	console.log(`${c.bold(`Experiments for ${c.cyan(projectName)}`)}`);
+	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}`);
 	console.log();
 
 	for (const row of rows) {
@@ -151,7 +151,7 @@ async function printDetail(
 	const details = await Promise.all(detailPromises);
 
 	console.log();
-	console.log(`${c.bold(`Experiments for ${c.cyan(projectName)}`)}`);
+	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}`);
 	console.log();
 
 	for (const d of details) {
@@ -194,29 +194,29 @@ async function printGlobal(detail: boolean, config: ExpConfig) {
 			const base = join(scanPath, entry.name);
 			const sourceRoot = join(scanPath, projectName);
 
-			const experiments = readdirSync(base, { withFileTypes: true })
+			const forks = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name));
 
-			if (experiments.length === 0) continue;
+			if (forks.length === 0) continue;
 
 			found = true;
 
 			console.log();
-			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${experiments.length} experiments)`)}`);
+			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${forks.length} forks)`)}`);
 
-			for (const exp of experiments) {
-				const expDir = join(base, exp.name);
+			for (const f of forks) {
+				const expDir = join(base, f.name);
 				const meta = readMetadata(expDir);
 				const desc = meta?.description ?? "";
 				const time = meta?.created ? timeAgo(meta.created) : "?";
-				console.log(`  ${c.bold(exp.name)}  ${c.dim(desc)}  ${c.dim(time)}`);
+				console.log(`  ${c.bold(f.name)}  ${c.dim(desc)}  ${c.dim(time)}`);
 			}
 		}
 	}
 
 	if (!found) {
-		dim("No experiments found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
+		dim("No forks found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
 	}
 
 	console.log();
@@ -241,7 +241,7 @@ async function getDivergedSize(sourceRoot: string, expDir: string): Promise<stri
 		// "Only in /exp/: newfile.ts"
 		// "Only in /exp/subdir: file.ts"
 
-		// For "differ" lines, get the experiment file size
+		// For "differ" lines, get the fork file size
 		const differMatch = line.match(/^Files .+ and (.+) differ$/);
 		if (differMatch) {
 			const filePath = differMatch[1];
@@ -260,7 +260,7 @@ async function getDivergedSize(sourceRoot: string, expDir: string): Promise<stri
 		if (onlyInMatch) {
 			const dir = onlyInMatch[1];
 			const fileName = onlyInMatch[2];
-			// Only count files in the experiment, not files only in source
+			// Only count files in the fork, not files only in source
 			if (dir.startsWith(expDir) || dir === expDir) {
 				const filePath = `${dir}/${fileName}`;
 				try {
@@ -328,7 +328,7 @@ async function printJson(config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		console.log(JSON.stringify({ project: name, experiments: [] }));
+		console.log(JSON.stringify({ project: name, forks: [] }));
 		return;
 	}
 
@@ -336,7 +336,7 @@ async function printJson(config: ExpConfig) {
 		.filter((e) => e.isDirectory())
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	const experiments = entries.map((entry) => {
+	const forks = entries.map((entry) => {
 		const expDir = `${base}/${entry.name}`;
 		const meta = readMetadata(expDir);
 		return {
@@ -349,7 +349,7 @@ async function printJson(config: ExpConfig) {
 		};
 	});
 
-	console.log(JSON.stringify({ project: name, root, experiments }));
+	console.log(JSON.stringify({ project: name, root, forks }));
 }
 
 async function printJsonGlobal(config: ExpConfig) {
@@ -367,7 +367,7 @@ async function printJsonGlobal(config: ExpConfig) {
 	const projects: Array<{
 		project: string;
 		root: string;
-		experiments: Array<Record<string, unknown>>;
+		forks: Array<Record<string, unknown>>;
 	}> = [];
 
 	for (const scanPath of scanPaths) {
@@ -380,7 +380,7 @@ async function printJsonGlobal(config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const experiments = readdirSync(base, { withFileTypes: true })
+			const forks = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name))
 				.map((e) => {
@@ -396,11 +396,11 @@ async function printJsonGlobal(config: ExpConfig) {
 					};
 				});
 
-			if (experiments.length > 0) {
+			if (forks.length > 0) {
 				projects.push({
 					project: projectName,
 					root: join(scanPath, projectName),
-					experiments,
+					forks,
 				});
 			}
 		}

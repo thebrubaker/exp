@@ -13,7 +13,7 @@ export function seedClaudeMd(
 	fromExp?: string,
 ) {
 	const claudePath = join(expDir, "CLAUDE.md");
-	const lineageLine = fromExp ? `\nForked from experiment \`${fromExp}\`.` : "";
+	const lineageLine = fromExp ? `\nForked from \`${fromExp}\`.` : "";
 	const header = `${MARKER_START}
 ## Side quest: ${description}
 

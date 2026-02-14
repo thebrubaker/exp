@@ -1,6 +1,6 @@
 # exp
 
-Instant experiment forking via macOS APFS clonefile.
+Instant project forking via macOS APFS clonefile.
 
 [![CI](https://github.com/thebrubaker/exp/actions/workflows/ci.yml/badge.svg)](https://github.com/thebrubaker/exp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/thebrubaker/exp)](https://github.com/thebrubaker/exp/releases/latest)
@@ -23,13 +23,13 @@ None of these give you a fully isolated, instant copy you can run side-by-side w
 
 ```bash
 exp new "try redis caching"    # Instant clone, new terminal opens
-# ...experiment freely...
-exp promote 1                  # Replace original with experiment
+# ...work freely...
+exp promote 1                  # Fork replaces original
 # OR
 exp trash 1                    # Clean up
 ```
 
-That's it. Fork, experiment, keep or toss.
+That's it. Fork, explore, keep or toss.
 
 ## Installation
 
@@ -73,14 +73,14 @@ Coming soon.
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `exp new "desc"` | `n` | Clone project + open terminal |
-| `exp ls` | `l`, `list` | List experiments |
+| `exp ls` | `l`, `list` | List forks |
 | `exp diff <id>` | `d` | What changed vs original |
-| `exp promote <id>` | `p` | Experiment replaces original (with backup) |
-| `exp trash <id>` | `t`, `rm` | Delete experiment |
-| `exp open <id>` | `o` | Open terminal in experiment |
+| `exp promote <id>` | `p` | Fork replaces original (with backup) |
+| `exp trash <id>` | `t`, `rm` | Delete fork |
+| `exp open <id>` | `o` | Open terminal in fork |
 | `exp cd <id>` | -- | Print path (use: `cd $(exp cd 3)`) |
 | `exp status` | `st` | Project info |
-| `exp nuke` | -- | Delete ALL experiments |
+| `exp nuke` | -- | Delete ALL forks |
 | `exp clean-export` | `ce` | Remove `/export` files from original after cloning |
 
 IDs can be a number (`1`), full name (`001-try-redis`), or partial match (`redis`).
@@ -93,11 +93,11 @@ IDs can be a number (`1`), full name (`001-try-redis`), or partial match (`redis
 ~/Code/
   my-project/                  # Your original project
   .exp-my-project/
-    001-try-redis/             # Experiment 1 (APFS clone)
-    002-refactor-auth/         # Experiment 2 (APFS clone)
+    001-try-redis/             # Fork 1 (APFS clone)
+    002-refactor-auth/         # Fork 2 (APFS clone)
 ```
 
-Experiments live in a sibling directory named `.exp-{project}`. Each experiment gets a sequential number and a slugified description.
+Forks live in a sibling directory named `.exp-{project}`. Each fork gets a sequential number and a slugified description.
 
 A full clone of a project with 500MB of `node_modules` takes under a second and uses almost zero additional disk space. Files only consume real space when they diverge.
 
@@ -108,8 +108,8 @@ A full clone of a project with 500MB of `node_modules` takes under a second and 
 Create `~/.config/exp` with key=value pairs:
 
 ```bash
-# Override where experiments are stored
-root=/Volumes/fast-ssd/experiments
+# Override where forks are stored
+root=/Volumes/fast-ssd/forks
 
 # Force a specific terminal
 terminal=ghostty
@@ -127,7 +127,7 @@ Environment variables take priority over the config file:
 
 | Variable | Config Key | Description |
 |----------|------------|-------------|
-| `EXP_ROOT` | `root` | Override experiment storage location |
+| `EXP_ROOT` | `root` | Override fork storage location |
 | `EXP_TERMINAL` | `terminal` | `auto` \| `ghostty` \| `iterm` \| `warp` \| `tmux` \| `terminal` \| `none` |
 | `EXP_OPEN_EDITOR` | `open_editor` | `code` \| `cursor` \| `zed` |
 | `EXP_CLEAN` | `clean` | Space-separated dirs to nuke after clone (default: `.next .turbo`) |
@@ -138,9 +138,9 @@ Environment variables take priority over the config file:
 
 ## Claude Code Integration
 
-`exp` was built for developers using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). When you create a new experiment:
+`exp` was built for developers using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). When you create a new fork:
 
-1. **CLAUDE.md seeding** -- `exp` prepends experiment context (description, promote/trash commands) to your `CLAUDE.md` so Claude knows it's working in a clone, not the original.
+1. **CLAUDE.md seeding** -- `exp` prepends fork context (description, promote/trash commands) to your `CLAUDE.md` so Claude knows it's working in a clone, not the original.
 
 2. **`/export` ride-along** -- Use Claude's `/export` command to save your session context to a file before forking. The export comes along with the clone, giving your next Claude session full context of what you were working on.
 

@@ -32,8 +32,8 @@ describe("detectContext", () => {
 		writeExpMeta(tmpBase, sampleMeta);
 
 		const ctx = detectContext(tmpBase);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		expect(ctx.expDir).toBe(tmpBase);
 		expect(ctx.expName).toBe("001-try-redis");
@@ -49,8 +49,8 @@ describe("detectContext", () => {
 		mkdirSync(subDir, { recursive: true });
 
 		const ctx = detectContext(subDir);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		expect(ctx.expDir).toBe(tmpBase);
 		expect(ctx.expName).toBe("001-try-redis");
@@ -59,7 +59,7 @@ describe("detectContext", () => {
 	test("returns ProjectContext when no .exp found", () => {
 		// tmpBase exists but has no .exp file
 		const ctx = detectContext(tmpBase);
-		expect(ctx.isExperiment).toBe(false);
+		expect(ctx.isFork).toBe(false);
 	});
 
 	test("parses all metadata fields correctly", () => {
@@ -74,8 +74,8 @@ describe("detectContext", () => {
 		writeExpMeta(tmpBase, meta);
 
 		const ctx = detectContext(tmpBase);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		expect(ctx.expName).toBe("042-new-auth");
 		expect(ctx.originalRoot).toBe("/Users/joel/Code/big-project");
@@ -87,14 +87,14 @@ describe("detectContext", () => {
 		writeFileSync(join(tmpBase, ".exp"), "not valid json {{{");
 
 		const ctx = detectContext(tmpBase);
-		expect(ctx.isExperiment).toBe(false);
+		expect(ctx.isFork).toBe(false);
 	});
 
 	test("returns ProjectContext for empty .exp file", () => {
 		writeFileSync(join(tmpBase, ".exp"), "");
 
 		const ctx = detectContext(tmpBase);
-		expect(ctx.isExperiment).toBe(false);
+		expect(ctx.isFork).toBe(false);
 	});
 
 	test("finds .exp multiple levels up", () => {
@@ -104,8 +104,8 @@ describe("detectContext", () => {
 		mkdirSync(deepDir, { recursive: true });
 
 		const ctx = detectContext(deepDir);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		expect(ctx.expDir).toBe(tmpBase);
 	});

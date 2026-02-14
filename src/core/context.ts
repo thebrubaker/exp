@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExpMetadata } from "./experiment.ts";
 
-export interface ExperimentContext {
-	isExperiment: true;
+export interface ForkContext {
+	isFork: true;
 	expDir: string;
 	expName: string;
 	originalRoot: string;
@@ -12,14 +12,14 @@ export interface ExperimentContext {
 }
 
 export interface ProjectContext {
-	isExperiment: false;
+	isFork: false;
 }
 
-export type Context = ExperimentContext | ProjectContext;
+export type Context = ForkContext | ProjectContext;
 
 /**
  * Walk up from cwd (or `from`) looking for a `.exp` metadata file.
- * If found, return experiment context. Otherwise, return project context.
+ * If found, return fork context. Otherwise, return project context.
  */
 export function detectContext(from?: string): Context {
 	let dir = from ?? process.cwd();
@@ -31,7 +31,7 @@ export function detectContext(from?: string): Context {
 				const raw = readFileSync(metaPath, "utf-8");
 				const meta: ExpMetadata = JSON.parse(raw);
 				return {
-					isExperiment: true,
+					isFork: true,
 					expDir: dir,
 					expName: meta.name,
 					originalRoot: meta.source,
@@ -39,8 +39,8 @@ export function detectContext(from?: string): Context {
 					number: meta.number,
 				};
 			} catch {
-				// Malformed .exp file — treat as not an experiment
-				return { isExperiment: false };
+				// Malformed .exp file — treat as not a fork
+				return { isFork: false };
 			}
 		}
 
@@ -49,5 +49,5 @@ export function detectContext(from?: string): Context {
 		dir = parent;
 	}
 
-	return { isExperiment: false };
+	return { isFork: false };
 }

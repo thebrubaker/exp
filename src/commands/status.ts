@@ -12,7 +12,7 @@ export async function cmdStatus(config: ExpConfig) {
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
-	const experimentCount = existsSync(base)
+	const forkCount = existsSync(base)
 		? readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory()).length
 		: 0;
 
@@ -30,7 +30,7 @@ export async function cmdStatus(config: ExpConfig) {
 				project: name,
 				root,
 				expDir: base,
-				experiments: experimentCount,
+				forks: forkCount,
 				terminal,
 				clean: config.clean,
 				exports: exportCount,
@@ -47,7 +47,7 @@ export async function cmdStatus(config: ExpConfig) {
 	if (existsSync(base)) {
 		const sizeResult = await exec(["du", "-sh", base]);
 		const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
-		console.log(`${c.bold("Active:")}   ${experimentCount} experiments (${size})`);
+		console.log(`${c.bold("Active:")}   ${forkCount} forks (${size})`);
 	} else {
 		console.log(`${c.bold("Active:")}   0`);
 	}

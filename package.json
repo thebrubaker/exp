@@ -1,7 +1,7 @@
 {
 	"name": "exp",
 	"version": "0.3.0",
-	"description": "Instant experiment forking via macOS APFS clonefile",
+	"description": "Instant project forking via macOS APFS clonefile",
 	"type": "module",
 	"bin": {
 		"exp": "./dist/exp.js"
@@ -25,7 +25,7 @@
 		"@types/node": "^22.0.0",
 		"typescript": "^5.7.0"
 	},
-	"keywords": ["cli", "experiment", "apfs", "clone", "dev-tools"],
+	"keywords": ["cli", "fork", "apfs", "clone", "dev-tools"],
 	"author": "Joel Brubaker",
 	"license": "MIT",
 	"repository": {

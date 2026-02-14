@@ -28,7 +28,7 @@ function parseNewFlags(args: string[]) {
 			filteredArgs.push(args[i]);
 		}
 	}
-	const description = filteredArgs.join(" ") || "experiment";
+	const description = filteredArgs.join(" ") || "fork";
 	return { fromId, terminalOverride, filteredArgs, description };
 }
 
@@ -90,14 +90,14 @@ describe("flag parsing", () => {
 		expect(result.fromId).toBeNull();
 		expect(result.terminalOverride).toBeNull();
 		expect(result.filteredArgs).toEqual([]);
-		expect(result.description).toBe("experiment");
+		expect(result.description).toBe("fork");
 	});
 
 	test("--terminal does not consume the next arg", () => {
-		const result = parseNewFlags(["--terminal", "my", "experiment"]);
+		const result = parseNewFlags(["--terminal", "my", "fork"]);
 		expect(result.terminalOverride).toBe(true);
-		expect(result.filteredArgs).toEqual(["my", "experiment"]);
-		expect(result.description).toBe("my experiment");
+		expect(result.filteredArgs).toEqual(["my", "fork"]);
+		expect(result.description).toBe("my fork");
 	});
 });
 
@@ -190,12 +190,12 @@ function resolveCloneSource(
 	if (fromId) {
 		const resolved = resolveExp(fromId, base);
 		if (!resolved) {
-			throw new Error(`Experiment not found: ${fromId}`);
+			throw new Error(`Fork not found: ${fromId}`);
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
-	} else if (ctx.isExperiment) {
+	} else if (ctx.isFork) {
 		cloneSource = ctx.expDir;
 		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
@@ -217,7 +217,7 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(expDir);
-		expect(ctx.isExperiment).toBe(true);
+		expect(ctx.isFork).toBe(true);
 
 		const result = resolveCloneSource(
 			null,
@@ -248,7 +248,7 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(exp1);
-		expect(ctx.isExperiment).toBe(true);
+		expect(ctx.isFork).toBe(true);
 
 		const result = resolveCloneSource(
 			"2",
@@ -263,7 +263,7 @@ describe("experiment context auto-detection", () => {
 
 	test("when not inside experiment and no --from, clones from project root", () => {
 		const ctx = detectContext(tmpBase); // no .exp file
-		expect(ctx.isExperiment).toBe(false);
+		expect(ctx.isFork).toBe(false);
 
 		const result = resolveCloneSource(
 			null,
@@ -289,8 +289,8 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(expDir);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		// The root should come from the .exp metadata source field
 		expect(ctx.originalRoot).toBe("/Users/joel/Code/big-app");
@@ -311,8 +311,8 @@ describe("experiment context auto-detection", () => {
 		mkdirSync(subDir, { recursive: true });
 
 		const ctx = detectContext(subDir);
-		expect(ctx.isExperiment).toBe(true);
-		if (!ctx.isExperiment) return;
+		expect(ctx.isFork).toBe(true);
+		if (!ctx.isFork) return;
 
 		expect(ctx.expDir).toBe(expDir);
 		expect(ctx.expName).toBe("001-try-redis");

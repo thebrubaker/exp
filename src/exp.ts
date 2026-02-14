@@ -18,7 +18,7 @@ const VERSION = "0.3.0";
 
 function printHelp() {
 	console.log(`
-  exp — instant experiment forking via APFS clonefile
+  exp — instant project forking via APFS clonefile
 
   WORKFLOW
     /export                       <- optional: save Claude session to file
@@ -28,13 +28,13 @@ function printHelp() {
   COMMANDS
     exp init                  Set up preferences (terminal, editor, clean targets)
     exp new "description"     Clone project + open terminal
-    exp new "desc" --from <id>  Clone from existing experiment
-    exp ls [--detail]         List experiments (--detail for git status + divergence)
-    exp open <id>             Open terminal in experiment
+    exp new "desc" --from <id>  Clone from existing fork
+    exp ls [--detail]         List forks (--detail for git status + divergence)
+    exp open <id>             Open terminal in fork
     exp diff <id>             What changed vs original (git-native when available)
     exp home                  Print original project path (use: cd $(exp home))
-    exp trash <id>            Delete experiment
-    exp nuke                  Delete ALL experiments
+    exp trash <id>            Delete fork
+    exp nuke                  Delete ALL forks
     exp cd <id>               Print path (use: cd $(exp cd 3))
     exp status                Project info
     exp clean-export          Remove /export files from original after cloning
@@ -47,7 +47,7 @@ function printHelp() {
     EXP_* env vars     Override config file values
 
     Keys / env vars:
-      root             EXP_ROOT           Override experiment storage location
+      root             EXP_ROOT           Override fork storage location
       terminal         EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
       open_editor      EXP_OPEN_EDITOR    code | cursor | zed
       clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
