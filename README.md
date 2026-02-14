@@ -6,143 +6,112 @@ Instant project forking via macOS APFS clonefile.
 [![Release](https://img.shields.io/github/v/release/thebrubaker/exp)](https://github.com/thebrubaker/exp/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## The Problem
+<p align="center">
+  <img src="demo.gif" alt="exp demo" width="800" />
+</p>
 
-You want to try something risky without nuking your working state. Your options:
+## Why
 
-- **Git branches** — no parallel execution; you switch, not fork
-- **Git worktrees** — shares `node_modules`, misses `.env`, breaks tools that assume one project root
-- **Git stash** — a stack you lose track of; not real isolation
-- **Copy the folder** — slow, eats disk, manual cleanup
+APFS copy-on-write cloning gives you a full project copy — `.env`, `.git`, `node_modules`, everything — in under a second with near-zero disk overhead. `exp` wraps this into a CLI that creates numbered forks, seeds them with context, and opens a terminal.
 
-None of these give you a fully isolated, instant copy you can run side-by-side with the original.
+No shared state. No branch switching. No cleanup. Just fork, work, merge via git, trash.
 
-## The Solution
+## The unlock: AI agent orchestration
 
-`exp` uses macOS APFS copy-on-write cloning to create an instant, full copy of your project — `.env`, `.git`, `node_modules`, everything — with near-zero disk overhead. Files only consume space when they actually diverge.
+When Claude Code needs to work on three things at once, each agent needs its own isolated workspace. `exp` gives every agent a full project fork with its own git branch — zero conflicts, near-zero cost.
 
 ```bash
-exp new "try redis caching"    # Instant clone, new terminal opens
-# ...work freely...
-exp promote 1                  # Fork replaces original
-# OR
-exp trash 1                    # Clean up
+# Claude dispatches three agents, each in their own fork
+exp new "upgrade-turbo" --no-terminal    # Agent 1 → branch exp/upgrade-turbo
+exp new "fix-ci" --no-terminal           # Agent 2 → branch exp/fix-ci
+exp new "dark-mode" --no-terminal        # Agent 3 → branch exp/dark-mode
+
+# Each agent commits, pushes, opens a PR. Your working branch is untouched.
 ```
 
-That's it. Fork, explore, keep or toss.
+No file collisions. No orchestrator needed to prevent conflicts. Each fork is a real git repo with its own branch — agents push and merge via PR like any developer would.
 
-## Installation
-
-### Download Binary (Recommended)
-
-Grab the latest binary from [GitHub Releases](https://github.com/thebrubaker/exp/releases/latest):
+## Install
 
 ```bash
-# Apple Silicon
+brew install digitalpine/tap/exp
+```
+
+Or grab a binary from [releases](https://github.com/thebrubaker/exp/releases/latest):
+
+```bash
 curl -L https://github.com/thebrubaker/exp/releases/latest/download/exp-darwin-arm64 -o exp
-chmod +x exp
-sudo mv exp /usr/local/bin/exp
-
-# Intel Mac
-curl -L https://github.com/thebrubaker/exp/releases/latest/download/exp-darwin-x64 -o exp
-chmod +x exp
-sudo mv exp /usr/local/bin/exp
+chmod +x exp && sudo mv exp /usr/local/bin/exp
 ```
 
-### Build from Source
+Requires macOS with APFS (the default since High Sierra).
+
+## Quick start
 
 ```bash
-git clone https://github.com/thebrubaker/exp.git
-cd exp
-bun install
-bun run build:binary
-sudo ln -sf $(pwd)/dist/exp /usr/local/bin/exp
+exp init                          # One-time setup (terminal, editor, clean targets)
+exp new "try redis caching"       # Fork + new terminal + git branch
+# ...work freely...
+exp trash 1                       # Done? Toss it.
 ```
 
-### Homebrew
+## How it works
 
-Coming soon.
+`exp` calls the macOS `clonefile(2)` syscall — an atomic copy-on-write clone of your entire project directory. Both copies share the same physical disk blocks until a file diverges, at which point only the changed blocks are duplicated.
 
-## Requirements
+```
+~/Code/
+  my-project/                    # Your original (untouched)
+  .exp-my-project/
+    001-try-redis/               # Fork 1 — own git branch, full isolation
+    002-refactor-auth/           # Fork 2 — same deal
+```
 
-- **macOS** with APFS filesystem (the core mechanism)
-- **Bun** runtime (only if building from source)
+A 2GB project with `node_modules` clones in ~1 second and uses a few KB until you start changing files.
 
 ## Commands
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `exp new "desc"` | `n` | Clone project + open terminal |
-| `exp ls` | `l`, `list` | List forks |
+| `exp new "desc"` | `n` | Fork project → git branch → open terminal |
+| `exp ls` | `l`, `list` | List forks (with diverged size) |
 | `exp diff <id>` | `d` | What changed vs original |
-| `exp promote <id>` | `p` | Fork replaces original (with backup) |
 | `exp trash <id>` | `t`, `rm` | Delete fork |
 | `exp open <id>` | `o` | Open terminal in fork |
-| `exp cd <id>` | -- | Print path (use: `cd $(exp cd 3)`) |
+| `exp cd <id>` | -- | Print path (`cd $(exp cd 3)`) |
 | `exp status` | `st` | Project info |
 | `exp nuke` | -- | Delete ALL forks |
-| `exp clean-export` | `ce` | Remove `/export` files from original after cloning |
+| `exp home` | -- | Print original project path (from inside a fork) |
 
-IDs can be a number (`1`), full name (`001-try-redis`), or partial match (`redis`).
+IDs are flexible: number (`1`), full name (`001-try-redis`), or partial match (`redis`).
 
-## How It Works
-
-`exp` calls the macOS `clonefile(2)` syscall, which creates an atomic copy-on-write clone of your entire project directory. The filesystem handles the magic: both copies share the same physical blocks on disk until a file is actually modified, at which point only the changed blocks are duplicated.
-
-```
-~/Code/
-  my-project/                  # Your original project
-  .exp-my-project/
-    001-try-redis/             # Fork 1 (APFS clone)
-    002-refactor-auth/         # Fork 2 (APFS clone)
-```
-
-Forks live in a sibling directory named `.exp-{project}`. Each fork gets a sequential number and a slugified description.
-
-A full clone of a project with 500MB of `node_modules` takes under a second and uses almost zero additional disk space. Files only consume real space when they diverge.
+Every fork automatically gets a git branch (`exp/<slug>`) so work is PR-ready from the start.
 
 ## Configuration
 
-### Config File
-
-Create `~/.config/exp` with key=value pairs:
+Create `~/.config/exp`:
 
 ```bash
-# Override where forks are stored
-root=/Volumes/fast-ssd/forks
-
-# Force a specific terminal
-terminal=ghostty
-
-# Open editor after cloning
-open_editor=cursor
-
-# Directories to delete after cloning (saves rebuild time)
-clean=.next .turbo .cache
+terminal=ghostty          # ghostty | iterm | warp | tmux | terminal | none
+open_editor=cursor        # Open editor after forking
+clean=.next .turbo .cache # Delete these dirs post-clone (saves rebuild time)
 ```
-
-### Environment Variables
-
-Environment variables take priority over the config file:
 
 | Variable | Config Key | Description |
 |----------|------------|-------------|
 | `EXP_ROOT` | `root` | Override fork storage location |
-| `EXP_TERMINAL` | `terminal` | `auto` \| `ghostty` \| `iterm` \| `warp` \| `tmux` \| `terminal` \| `none` |
-| `EXP_OPEN_EDITOR` | `open_editor` | `code` \| `cursor` \| `zed` |
-| `EXP_CLEAN` | `clean` | Space-separated dirs to nuke after clone (default: `.next .turbo`) |
+| `EXP_TERMINAL` | `terminal` | Terminal to open (auto-detected by default) |
+| `EXP_OPEN_EDITOR` | `open_editor` | Editor to open in fork |
+| `EXP_CLEAN` | `clean` | Dirs to nuke after clone |
 
-### Terminal Detection
+## Claude Code integration
 
-`exp` auto-detects your terminal and opens a new window/tab in the right app. Supported: Ghostty, iTerm2, Warp, tmux, Terminal.app. Set `EXP_TERMINAL=none` to skip opening a terminal.
+`exp` was built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Every fork gets:
 
-## Claude Code Integration
-
-`exp` was built for developers using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). When you create a new fork:
-
-1. **CLAUDE.md seeding** -- `exp` prepends fork context (description, promote/trash commands) to your `CLAUDE.md` so Claude knows it's working in a clone, not the original.
-
-2. **`/export` ride-along** -- Use Claude's `/export` command to save your session context to a file before forking. The export comes along with the clone, giving your next Claude session full context of what you were working on.
+- **CLAUDE.md seeding** — fork context (goal, diff/trash commands) prepended so Claude knows it's in a fork
+- **Auto git branch** — `exp/<slug>` branch created automatically, ready for PR
+- **TTY detection** — agents get `--no-terminal` behavior automatically (no terminal flood)
+- **JSON output** — `exp new --json` returns structured data for programmatic use
 
 ```bash
 # In Claude Code: /export
