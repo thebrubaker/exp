@@ -14,7 +14,7 @@ import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
 import { err } from "./utils/colors.ts";
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.3";
 
 function printHelp() {
 	console.log(`
@@ -33,8 +33,8 @@ function printHelp() {
     exp open <id>             Open terminal in fork
     exp diff <id>             What changed vs original (git-native when available)
     exp home                  Print original project path (use: cd $(exp home))
-    exp trash <id>            Delete fork
-    exp nuke                  Delete ALL forks
+    exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
+    exp nuke [--force]        Delete ALL forks (--force/-y skips confirmation)
     exp cd <id>               Print path (use: cd $(exp cd 3))
     exp status                Project info
     exp clean-export          Remove /export files from original after cloning
@@ -95,7 +95,7 @@ async function main() {
 			case "trash":
 			case "rm":
 			case "t":
-				await cmdTrash(rest[0], config);
+				await cmdTrash(rest, config);
 				break;
 			case "open":
 			case "o":
@@ -113,7 +113,7 @@ async function main() {
 				await cmdStatus(config);
 				break;
 			case "nuke":
-				await cmdNuke(config);
+				await cmdNuke(rest, config);
 				break;
 			case "clean-export":
 			case "ce":

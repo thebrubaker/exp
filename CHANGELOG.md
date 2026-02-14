@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.3 — 2026-02-14
+
+- Fix spinner rendering in non-TTY contexts (agents, piped output, VHS)
+- Add `--force` / `-y` flag to `exp trash` and `exp nuke` for non-interactive use
+- Non-TTY without `--force` now errors with helpful message instead of hanging
+- Add `--json` output to `trash` and `nuke` commands
+- Fix stale VERSION constant (was stuck at 0.3.0)
+
 ## v0.3.2 — 2026-02-13
 
 - Rename "experiments" to "forks" across codebase and docs

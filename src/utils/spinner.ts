@@ -7,7 +7,14 @@ export interface Spinner {
 	stop: () => void;
 }
 
+const noopSpinner: Spinner = {
+	update() {},
+	stop() {},
+};
+
 export function startSpinner(text: string): Spinner {
+	if (!process.stdout.isTTY) return noopSpinner;
+
 	let frame = 0;
 	let currentText = text;
 
