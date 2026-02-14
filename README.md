@@ -2,6 +2,8 @@
 
 Instant directory forking via macOS APFS clonefile -- git worktrees but dumber and faster.
 
+**[thebrubaker.github.io/exp](https://thebrubaker.github.io/exp/)**
+
 [![CI](https://github.com/thebrubaker/exp/actions/workflows/ci.yml/badge.svg)](https://github.com/thebrubaker/exp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/thebrubaker/exp)](https://github.com/thebrubaker/exp/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
