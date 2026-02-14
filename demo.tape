@@ -4,14 +4,21 @@
 Output demo.gif
 
 Set Shell "zsh"
-Set FontFamily "JetBrains Mono"
+Set FontFamily "JetBrainsMono Nerd Font Mono"
 Set FontSize 15
 Set Width 900
 Set Height 480
 Set Padding 20
-Set Theme { "name": "exp", "black": "#0d1117", "red": "#ff7b72", "green": "#7ee787", "yellow": "#e3b341", "blue": "#58a6ff", "magenta": "#d2a8ff", "cyan": "#79c0ff", "white": "#e6edf3", "brightBlack": "#484f58", "brightRed": "#ffa198", "brightGreen": "#56d364", "brightYellow": "#e3b341", "brightBlue": "#79c0ff", "brightMagenta": "#d2a8ff", "brightCyan": "#56d364", "brightWhite": "#f0f6fc", "background": "#0d1117", "foreground": "#e6edf3", "selection": "#264f78", "cursor": "#e6edf3" }
+Set Theme { "name": "exp", "black": "#1e1e2e", "red": "#f38ba8", "green": "#a6e3a1", "yellow": "#f9e2af", "blue": "#89b4fa", "magenta": "#cba6f7", "cyan": "#94e2d5", "white": "#cdd6f4", "brightBlack": "#585b70", "brightRed": "#f38ba8", "brightGreen": "#a6e3a1", "brightYellow": "#f9e2af", "brightBlue": "#89b4fa", "brightMagenta": "#cba6f7", "brightCyan": "#94e2d5", "brightWhite": "#cdd6f4", "background": "#1e1e2e", "foreground": "#cdd6f4", "selection": "#45475a", "cursor": "#f5e0dc" }
 
+# Set up clean shell: no % mark, minimal prompt
+Hide
+Type "unset PROMPT_EOL_MARK && PS1='$ ' && clear"
+Enter
 Sleep 1s
+Show
+
+Sleep 500ms
 
 # Three forks, rapid-fire
 Type "exp new 'upgrade turbo' --no-terminal"
