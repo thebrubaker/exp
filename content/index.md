@@ -3,7 +3,7 @@ name: exp
 tagline: Instant project forking via APFS clonefile. Zero disk, zero fear.
 description: A CLI tool for macOS that creates fully isolated project copies in milliseconds using APFS copy-on-write cloning. Fork your project, try something wild, promote or trash it.
 subdomain: exp
-status: prototype
+status: active
 github: thebrubaker/exp
 links:
   - label: Install via Homebrew
@@ -155,7 +155,7 @@ If your original runs a dev server on port 3000 and you open a fork, they'll fig
 
 # Where This Is Going
 
-`exp` is v0.3. The core — fork, diff, promote, trash — is solid. Ten commands, no configuration, and fork IDs are flexible enough that `exp diff redis` resolves to `001-try-redis` without thinking about it.
+`exp` is at v0.3.2. The core — fork, diff, trash — is solid. Eleven commands, minimal configuration, and fork IDs are flexible enough that `exp diff redis` resolves to `001-try-redis` without thinking about it.
 
 What I keep reaching for that doesn't exist yet: a `cherry` command that copies specific files back from a fork without doing a full promote. Right now I `/bin/cp` them manually during reconciliation. It's fine for three files. It's annoying for twelve.
 

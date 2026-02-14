@@ -90,6 +90,8 @@ A 2GB project with `node_modules` clones in ~1 second and uses a few KB until yo
 | `exp status` | `st` | Project info |
 | `exp nuke` | -- | Delete ALL forks |
 | `exp home` | -- | Print original project path (from inside a fork) |
+| `exp init` | -- | Interactive onboarding (terminal, editor, clean targets) |
+| `exp clean-export` | `ce` | Remove Claude export files from project |
 
 IDs are flexible: number (`1`), full name (`001-try-redis`), or partial match (`redis`).
 

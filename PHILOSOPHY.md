@@ -24,9 +24,9 @@ Build (small). Clean TypeScript/Bun rewrite of a proven 473-line bash prototype.
 
 ## Boundaries
 
-**In:** All 10 commands (new, ls, diff, promote, trash, open, cd, status, nuke, clean-export). APFS clone with cp -R fallback. CLAUDE.md seeding with HTML comment markers. Terminal detection (Ghostty, iTerm, tmux, Terminal.app). Typed JSON metadata. EXP_* env var config. Vitest tests. Compiled binary.
+**In:** All 11 commands (new, ls, diff, trash, open, cd, home, status, init, nuke, clean-export). APFS clone with cp -R fallback. CLAUDE.md seeding with HTML comment markers. Terminal detection (Ghostty, iTerm, tmux, Terminal.app). Typed JSON metadata. EXP_* env var config. Auto git branch creation. TTY detection for agent use. Compiled binary.
 
-**Out:** Session forking (blocked by Claude Code limitation). Volume check warnings. Disk usage tracking. Editor integration. Slash command wrapper.
+**Out:** Session forking (blocked by Claude Code limitation). Volume check warnings. Disk usage tracking. Slash command wrapper.
 
 **Maybe:** `cherry` command (copy files back without promote). Zsh completions. `lsof` check on promote. Warp terminal support.
 
