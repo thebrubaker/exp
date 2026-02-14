@@ -1,6 +1,6 @@
-# exp
+# exp - the missing primitive for orchestrating parallel AI agents.
 
-Instant project forking via macOS APFS clonefile.
+Instant directory forking via macOS APFS clonefile -- git worktrees but dumber and faster.
 
 [![CI](https://github.com/thebrubaker/exp/actions/workflows/ci.yml/badge.svg)](https://github.com/thebrubaker/exp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/thebrubaker/exp)](https://github.com/thebrubaker/exp/releases/latest)
@@ -12,13 +12,13 @@ Instant project forking via macOS APFS clonefile.
 
 ## Why
 
-APFS copy-on-write cloning gives you a full project copy — `.env`, `.git`, `node_modules`, everything — in under a second with near-zero disk overhead. `exp` wraps this into a CLI that creates numbered forks, seeds them with context, and opens a terminal.
+APFS copy-on-write cloning gives you a full project copy — `.env`, `.git`, `node_modules`, everything — in under a second with near-zero disk overhead. `exp` wraps this into a CLI that creates numbered forks, seeds them with context, and opens a terminal (for humans).
 
 No shared state. No branch switching. No cleanup. Just fork, work, merge via git, trash.
 
 ## The unlock: AI agent orchestration
 
-When Claude Code needs to work on three things at once, each agent needs its own isolated workspace. `exp` gives every agent a full project fork with its own git branch — zero conflicts, near-zero cost.
+When Claude Code needs to work on three things at once, each agent needs its own isolated workspace. `exp` gives every agent a full directory fork with its own git branch — zero conflicts, near-zero cost.
 
 ```bash
 # Claude dispatches three agents, each in their own fork
@@ -30,6 +30,10 @@ exp new "dark-mode" --no-terminal        # Agent 3 → branch exp/dark-mode
 ```
 
 No file collisions. No orchestrator needed to prevent conflicts. Each fork is a real git repo with its own branch — agents push and merge via PR like any developer would.
+
+## Also useful to humans!
+
+If you've ever been in the middle of a task and wanted to quickly start a side-quest -- just run `exp new "try swapping in redis"` and you'll get a fast fork of your directory in a new terminal -- run claude and take it away.
 
 ## Install
 
