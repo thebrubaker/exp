@@ -31,7 +31,7 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 
 	if (!force) {
 		if (!process.stdin.isTTY) {
-			err(`Cannot confirm interactively (no TTY). Use --force or -y to skip confirmation.`);
+			err("Cannot confirm interactively (no TTY). Use --force or -y to skip confirmation.");
 			process.exit(1);
 		}
 

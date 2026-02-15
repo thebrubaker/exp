@@ -17,8 +17,8 @@ export async function cmdNuke(_args: string[], config: ExpConfig) {
 	}
 
 	if (!process.stdin.isTTY) {
-		err(`exp nuke requires interactive confirmation — a human must run this command.`);
-		err(`To delete individual forks programmatically, use: exp trash <id> --force`);
+		err("exp nuke requires interactive confirmation — a human must run this command.");
+		err("To delete individual forks programmatically, use: exp trash <id> --force");
 		process.exit(1);
 	}
 
