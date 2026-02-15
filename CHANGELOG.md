@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.4 — 2026-02-14
+
+- Fix lint errors that broke CI
+- Add quality gates (typecheck, test, lint) to release workflow
+
 ## v0.3.3 — 2026-02-14
 
 - Fix spinner rendering in non-TTY contexts (agents, piped output, VHS)
