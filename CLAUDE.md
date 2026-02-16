@@ -1,6 +1,6 @@
 # CLAUDE.md — exp
 
-Version: v0.3.4
+Version: v0.4.0
 
 ## Overview
 
@@ -41,9 +41,9 @@ src/
 │   ├── nuke.ts         # Delete ALL forks
 │   └── clean-export.ts # Remove /export files
 ├── core/               # Business logic
-│   ├── config.ts       # EXP_* env vars
+│   ├── config.ts       # EXP_* env vars + config file loading
 │   ├── project.ts      # Project root detection
-│   ├── experiment.ts   # Fork resolution, numbering, metadata
+│   ├── experiment.ts   # Fork resolution, numbering, metadata, branch prefix
 │   ├── context.ts      # Detect fork vs project context
 │   ├── clone.ts        # APFS clone with fallback
 │   └── claude.ts       # CLAUDE.md seeding
@@ -60,11 +60,11 @@ commands/
 
 - **Shell commands:** Always use arrays with `exec()` from `utils/shell.ts`, never template strings
 - **Terminal opening:** Ghostty uses `open -na` for new windows; iTerm/Terminal use osascript; tmux uses native commands
-- **TTY detection:** `process.stdin.isTTY` auto-suppresses terminal when AI/scripts call exp. Override with `--terminal`/`--no-terminal`
+- **Terminal behavior:** Terminal opening is opt-in via `--terminal` flag (or `auto_terminal=true` in config). Default: just print cd path.
 - **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables fork-from-fork and `exp home`
 - **CLAUDE.md seeding:** Prepends between `<!-- exp:start -->` and `<!-- exp:end -->` HTML comment markers
 - **Fork resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
-- **Auto-branch:** `exp new` creates `exp/<slug>` git branch for PR-ready workflow
+- **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
 - **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
 

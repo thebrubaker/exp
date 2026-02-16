@@ -3,7 +3,7 @@ import { confirm, input, select } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
 import { CONFIG_PATH, readRawConfig, writeConfig } from "../core/config.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
-import { execCheck } from "../utils/shell.ts";
+import { exec, execCheck } from "../utils/shell.ts";
 import type { TerminalType } from "../utils/terminal.ts";
 import { detectTerminal } from "../utils/terminal.ts";
 
@@ -98,13 +98,11 @@ export async function cmdInit(_config: ExpConfig) {
 	console.log(
 		`${c.dim("  │")}  ${c.green("✓")} 001-try-redis-sessions cloned in 48ms       ${c.dim("│")}`,
 	);
-	console.log(`${c.dim("  │")}    branch: exp/try-redis-sessions              ${c.dim("│")}`);
+	console.log(`${c.dim("  │")}    branch: joel/try-redis-sessions              ${c.dim("│")}`);
+	console.log(`${c.dim("  │")}    cd /Users/you/.exp-myapp/001-try-redis-...   ${c.dim("│")}`);
 	console.log(`${c.dim("  │")}                                                ${c.dim("│")}`);
 	console.log(
-		`${c.dim("  │")}  ${c.dim("New terminal opens. Full project clone.")}        ${c.dim("│")}`,
-	);
-	console.log(
-		`${c.dim("  │")}  ${c.dim("node_modules, .env, .git — everything.")}         ${c.dim("│")}`,
+		`${c.dim("  │")}  ${c.dim("Full project clone. node_modules, .env, .git.")} ${c.dim("│")}`,
 	);
 	console.log(
 		`${c.dim("  │")}  ${c.dim("Near-zero disk. Ready to go.")}                   ${c.dim("│")}`,
@@ -116,7 +114,7 @@ export async function cmdInit(_config: ExpConfig) {
 	info(c.bold("For you"));
 	console.log("  You're on a branch with unstaged changes. You need to update");
 	console.log("  turbo. That's annoying — you don't want to lose your context.");
-	console.log(`  ${c.cyan('exp new "turbo upgrade"')} and a terminal opens, ready to go.`);
+	console.log(`  ${c.cyan('exp new "turbo upgrade"')} — cd into the fork, you're ready.`);
 	console.log("  Your original project? Untouched. Merge via git when done.");
 	console.log();
 
@@ -137,7 +135,24 @@ export async function cmdInit(_config: ExpConfig) {
 	// ── Now configure ──
 	console.log(c.bold("  Let's set up your preferences.\n"));
 
-	// ── Terminal preference ──
+	// ── Post-fork behavior ──
+	const postForkAction = await select<"cd" | "terminal">({
+		message: "After forking, what should happen?",
+		choices: [
+			{
+				name: `cd — print the fork path ${c.dim("(recommended)")}`,
+				value: "cd" as const,
+			},
+			{
+				name: "terminal — open a new terminal window",
+				value: "terminal" as const,
+			},
+		],
+	});
+
+	const autoTerminal = postForkAction === "terminal";
+
+	// ── Terminal type ──
 	const detected = detectTerminal();
 	const detectedLabel = TERMINAL_LABELS[detected];
 
@@ -156,7 +171,9 @@ export async function cmdInit(_config: ExpConfig) {
 	}
 
 	const terminal = await select<TerminalType>({
-		message: "Terminal for new forks?",
+		message: autoTerminal
+			? "Which terminal to open?"
+			: `Which terminal for ${c.cyan("--terminal")} flag?`,
 		choices: terminalChoices,
 	});
 
@@ -221,10 +238,24 @@ export async function cmdInit(_config: ExpConfig) {
 		}
 	}
 
+	// ── Branch prefix ──
+	let detectedPrefix = "exp";
+	const gitNameResult = await exec(["git", "config", "user.name"]);
+	if (gitNameResult.success && gitNameResult.stdout.trim()) {
+		const firstName = gitNameResult.stdout.trim().split(/\s+/)[0].toLowerCase();
+		if (firstName) detectedPrefix = firstName;
+	}
+
+	const branchPrefix = await input({
+		message: `Branch prefix? ${c.dim("(branches: <prefix>/<slug>)")}`,
+		default: detectedPrefix,
+	});
+
 	// ── Write config ──
 	const values: Record<string, string> = {};
 
 	values.terminal = terminal;
+	values.auto_terminal = String(autoTerminal);
 
 	if (openEditor) {
 		values.open_editor = openEditor;
@@ -233,6 +264,8 @@ export async function cmdInit(_config: ExpConfig) {
 	if (cleanTargets.length > 0) {
 		values.clean = cleanTargets.join(" ");
 	}
+
+	values.branch_prefix = branchPrefix;
 
 	writeConfig(values);
 

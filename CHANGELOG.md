@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0 — 2026-02-16
+
+- Configurable branch naming: `branch_prefix` config / `EXP_BRANCH_PREFIX` env var (default: git first name or "exp")
+- Add `--branch` / `-b` flag to `exp new` for exact branch names (e.g. `--branch feat/onl-123`)
+- Add `getDefaultBranchPrefix()` helper in `core/experiment.ts`
+- Terminal opening is now opt-in: default behavior prints cd path instead of opening a new terminal
+- Add `auto_terminal` config / `EXP_AUTO_TERMINAL` env var to restore auto-open behavior
+- Add `--terminal` and `--no-terminal` to help text FLAGS section
+- Restructure `exp init` wizard: post-fork behavior choice (cd recommended), branch prefix prompt
+- Update init pitch text to reflect cd-first workflow
+
 ## v0.3.4 — 2026-02-14
 
 - Fix lint errors that broke CI

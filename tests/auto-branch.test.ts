@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { slugify } from "../src/core/experiment.ts";
+import type { ExpConfig } from "../src/core/config.ts";
+import { getDefaultBranchPrefix, slugify } from "../src/core/experiment.ts";
 import { exec } from "../src/utils/shell.ts";
 
 const TMP = "/tmp/exp-test-auto-branch";
@@ -111,5 +112,41 @@ describe("git branch creation", () => {
 
 		const current = await exec(["git", "-C", repoDir, "branch", "--show-current"]);
 		expect(current.stdout.trim()).toBe(branchName);
+	});
+});
+
+function makeConfig(overrides: Partial<ExpConfig> = {}): ExpConfig {
+	return {
+		root: null,
+		terminal: "auto",
+		openEditor: null,
+		clean: [],
+		branchPrefix: null,
+		autoTerminal: false,
+		verbose: false,
+		json: false,
+		...overrides,
+	};
+}
+
+describe("branch prefix resolution", () => {
+	test("returns config value when branchPrefix is set", async () => {
+		const config = makeConfig({ branchPrefix: "team" });
+		const prefix = await getDefaultBranchPrefix(config);
+		expect(prefix).toBe("team");
+	});
+
+	test("returns non-empty string when branchPrefix is null", async () => {
+		const config = makeConfig({ branchPrefix: null });
+		const prefix = await getDefaultBranchPrefix(config);
+		expect(prefix.length).toBeGreaterThan(0);
+		// Should be either git user first name or "exp" fallback
+		expect(typeof prefix).toBe("string");
+	});
+
+	test("returns exact config value including slashes", async () => {
+		const config = makeConfig({ branchPrefix: "feat/onl" });
+		const prefix = await getDefaultBranchPrefix(config);
+		expect(prefix).toBe("feat/onl");
 	});
 });

@@ -14,7 +14,7 @@ import { cmdTrash } from "./commands/trash.ts";
 import { loadConfig } from "./core/config.ts";
 import { err } from "./utils/colors.ts";
 
-const VERSION = "0.3.4";
+const VERSION = "0.4.0";
 
 function printHelp() {
 	console.log(`
@@ -27,8 +27,9 @@ function printHelp() {
 
   COMMANDS
     exp init                  Set up preferences (terminal, editor, clean targets)
-    exp new "description"     Clone project + open terminal
+    exp new "description"     Clone project (prints cd path by default)
     exp new "desc" --from <id>  Clone from existing fork
+    exp new "desc" --branch <name>  Use exact branch name
     exp ls [--detail]         List forks (--detail for git status + divergence)
     exp open <id>             Open terminal in fork
     exp diff <id>             What changed vs original (git-native when available)
@@ -51,10 +52,14 @@ function printHelp() {
       terminal         EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
       open_editor      EXP_OPEN_EDITOR    code | cursor | zed
       clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
+      branch_prefix    EXP_BRANCH_PREFIX  Branch prefix (default: git first name or "exp")
+      auto_terminal    EXP_AUTO_TERMINAL  Auto-open terminal on fork (default: false)
 
   FLAGS
     --json               Machine-readable JSON output (for AI/scripts)
     --verbose            Show timing, paths, and method details
+    --terminal           Open a new terminal window in fork
+    --no-terminal        Suppress terminal (overrides auto_terminal)
 
   HOW IT WORKS
     macOS clonefile(2) syscall: atomic copy-on-write clone of entire directory.

@@ -4,7 +4,14 @@ import { seedClaudeMd } from "../core/claude.ts";
 import { cleanPostClone, cloneProject } from "../core/clone.ts";
 import type { ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
-import { ensureExpBase, nextNum, resolveExp, slugify, writeMetadata } from "../core/experiment.ts";
+import {
+	ensureExpBase,
+	getDefaultBranchPrefix,
+	nextNum,
+	resolveExp,
+	slugify,
+	writeMetadata,
+} from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import { exec, execCheck } from "../utils/shell.ts";
@@ -20,14 +27,18 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
 	const verbose = config.verbose;
 
-	// Parse flags: --from, --terminal, --no-terminal
+	// Parse flags: --from, --terminal, --no-terminal, --branch
 	let fromId: string | null = null;
 	let terminalOverride: boolean | null = null; // null = auto-detect
+	let branchOverride: string | null = null;
 	const filteredArgs: string[] = [];
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === "--from") {
 			fromId = args[i + 1] ?? null;
 			i++; // skip next arg
+		} else if (args[i] === "--branch" || args[i] === "-b") {
+			branchOverride = args[i + 1] ?? null;
+			i++;
 		} else if (args[i] === "--terminal") {
 			terminalOverride = true;
 		} else if (args[i] === "--no-terminal") {
@@ -106,7 +117,12 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	// Create git branch for PR workflow
 	let branchName: string | null = null;
 	if (existsSync(`${expDir}/.git`)) {
-		branchName = `exp/${slug}`;
+		if (branchOverride) {
+			branchName = branchOverride;
+		} else {
+			const prefix = await getDefaultBranchPrefix(config);
+			branchName = `${prefix}/${slug}`;
+		}
 		spinner.update(`Creating branch ${branchName}...`);
 		const branchResult = await exec(["git", "-C", expDir, "checkout", "-b", branchName]);
 		if (!branchResult.success) {
@@ -125,15 +141,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	// Determine terminal behavior:
 	// 1. --terminal / --no-terminal flags (explicit override)
-	// 2. TTY detection (non-interactive = suppress terminal)
-	// 3. Config / auto-detect (normal behavior)
-	const isInteractive = process.stdin.isTTY ?? false;
+	// 2. Config auto_terminal (default: false — just print cd path)
 	let shouldOpenTerminal: boolean;
 
 	if (terminalOverride !== null) {
 		shouldOpenTerminal = terminalOverride;
 	} else {
-		shouldOpenTerminal = isInteractive;
+		shouldOpenTerminal = config.autoTerminal;
 	}
 
 	const terminalType = shouldOpenTerminal ? detectTerminal(config.terminal) : "none";

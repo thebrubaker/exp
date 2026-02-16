@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { exec } from "../utils/shell.ts";
 import type { ExpConfig } from "./config.ts";
 
 export interface ExpMetadata {
@@ -94,4 +95,17 @@ export function readMetadata(expDir: string): ExpMetadata | null {
 
 export function writeMetadata(expDir: string, meta: ExpMetadata) {
 	Bun.write(join(expDir, ".exp"), JSON.stringify(meta));
+}
+
+export async function getDefaultBranchPrefix(config: ExpConfig): Promise<string> {
+	if (config.branchPrefix !== null) return config.branchPrefix;
+
+	const result = await exec(["git", "config", "user.name"]);
+	if (result.success && result.stdout.trim()) {
+		const firstName = result.stdout.trim().split(/\s+/)[0];
+		const slugged = slugify(firstName);
+		if (slugged) return slugged;
+	}
+
+	return "exp";
 }

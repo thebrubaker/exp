@@ -7,6 +7,8 @@ export interface ExpConfig {
 	terminal: TerminalType | "auto";
 	openEditor: string | null;
 	clean: string[];
+	branchPrefix: string | null;
+	autoTerminal: boolean;
 	verbose: boolean;
 	json: boolean;
 }
@@ -36,6 +38,8 @@ export function loadConfig(): ExpConfig {
 		terminal: (env.EXP_TERMINAL || file.terminal || "auto") as TerminalType | "auto",
 		openEditor: env.EXP_OPEN_EDITOR || file.open_editor || null,
 		clean,
+		branchPrefix: env.EXP_BRANCH_PREFIX || file.branch_prefix || null,
+		autoTerminal: (env.EXP_AUTO_TERMINAL || file.auto_terminal || "false") === "true",
 		verbose: false,
 		json: false,
 	};

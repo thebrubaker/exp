@@ -15,10 +15,14 @@ import { describe, expect, test } from "bun:test";
 function parseNewFlags(args: string[]) {
 	let fromId: string | null = null;
 	let terminalOverride: boolean | null = null;
+	let branchOverride: string | null = null;
 	const filteredArgs: string[] = [];
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === "--from") {
 			fromId = args[i + 1] ?? null;
+			i++;
+		} else if (args[i] === "--branch" || args[i] === "-b") {
+			branchOverride = args[i + 1] ?? null;
 			i++;
 		} else if (args[i] === "--terminal") {
 			terminalOverride = true;
@@ -29,7 +33,7 @@ function parseNewFlags(args: string[]) {
 		}
 	}
 	const description = filteredArgs.join(" ") || "fork";
-	return { fromId, terminalOverride, filteredArgs, description };
+	return { fromId, terminalOverride, branchOverride, filteredArgs, description };
 }
 
 describe("flag parsing", () => {
@@ -99,49 +103,71 @@ describe("flag parsing", () => {
 		expect(result.filteredArgs).toEqual(["my", "fork"]);
 		expect(result.description).toBe("my fork");
 	});
+
+	test("parses --branch flag", () => {
+		const result = parseNewFlags(["try", "thing", "--branch", "feat/onl-123"]);
+		expect(result.branchOverride).toBe("feat/onl-123");
+		expect(result.filteredArgs).toEqual(["try", "thing"]);
+		expect(result.description).toBe("try thing");
+	});
+
+	test("parses -b shorthand", () => {
+		const result = parseNewFlags(["try", "thing", "-b", "feat/onl-123"]);
+		expect(result.branchOverride).toBe("feat/onl-123");
+		expect(result.filteredArgs).toEqual(["try", "thing"]);
+	});
+
+	test("--branch with --from together", () => {
+		const result = parseNewFlags(["desc", "--from", "1", "--branch", "custom/branch"]);
+		expect(result.fromId).toBe("1");
+		expect(result.branchOverride).toBe("custom/branch");
+		expect(result.filteredArgs).toEqual(["desc"]);
+	});
+
+	test("--branch without value returns null", () => {
+		const result = parseNewFlags(["desc", "--branch"]);
+		expect(result.branchOverride).toBeNull();
+		expect(result.filteredArgs).toEqual(["desc"]);
+	});
+
+	test("no --branch leaves branchOverride as null", () => {
+		const result = parseNewFlags(["try", "thing"]);
+		expect(result.branchOverride).toBeNull();
+	});
 });
 
-// ── TTY Detection Logic ──
+// ── Terminal Decision Logic ──
 
-function shouldOpenTerminal(terminalOverride: boolean | null, isTTY: boolean | undefined): boolean {
-	const isInteractive = isTTY ?? false;
+function shouldOpenTerminal(terminalOverride: boolean | null, autoTerminal: boolean): boolean {
 	if (terminalOverride !== null) {
 		return terminalOverride;
 	}
-	return isInteractive;
+	return autoTerminal;
 }
 
-describe("TTY detection", () => {
-	test("suppresses terminal when stdin is not a TTY (script/AI agent)", () => {
+describe("terminal decision", () => {
+	test("defaults to no terminal when autoTerminal is false", () => {
 		expect(shouldOpenTerminal(null, false)).toBe(false);
 	});
 
-	test("suppresses terminal when stdin.isTTY is undefined (piped)", () => {
-		expect(shouldOpenTerminal(null, undefined)).toBe(false);
-	});
-
-	test("opens terminal when stdin is a TTY (interactive)", () => {
+	test("auto-opens terminal when autoTerminal is true", () => {
 		expect(shouldOpenTerminal(null, true)).toBe(true);
 	});
 
-	test("--terminal overrides non-TTY to open terminal", () => {
+	test("--terminal flag opens terminal regardless of config", () => {
 		expect(shouldOpenTerminal(true, false)).toBe(true);
 	});
 
-	test("--terminal overrides undefined TTY to open terminal", () => {
-		expect(shouldOpenTerminal(true, undefined)).toBe(true);
+	test("--terminal flag with autoTerminal true still opens", () => {
+		expect(shouldOpenTerminal(true, true)).toBe(true);
 	});
 
-	test("--no-terminal overrides TTY to suppress terminal", () => {
+	test("--no-terminal suppresses even when autoTerminal is true", () => {
 		expect(shouldOpenTerminal(false, true)).toBe(false);
 	});
 
-	test("--no-terminal when already non-TTY still suppresses", () => {
+	test("--no-terminal when autoTerminal false still suppresses", () => {
 		expect(shouldOpenTerminal(false, false)).toBe(false);
-	});
-
-	test("--terminal when already TTY still opens", () => {
-		expect(shouldOpenTerminal(true, true)).toBe(true);
 	});
 });
 
