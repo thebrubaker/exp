@@ -18,6 +18,6 @@ export function cmdCd(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	// Print to stdout (no formatting) so `cd $(exp cd 3)` works
-	process.stdout.write(expDir);
+	// Print with newline so it doesn't look broken in terminal
+	console.log(expDir);
 }
