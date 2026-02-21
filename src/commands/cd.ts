@@ -18,6 +18,5 @@ export function cmdCd(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	// Print with newline so it doesn't look broken in terminal
-	console.log(expDir);
+	console.log(`cd ${expDir}`);
 }
