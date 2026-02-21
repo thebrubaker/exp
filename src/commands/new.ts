@@ -222,7 +222,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		if (terminalType !== "none") {
 			ok(`Terminal open (${fmt(terminalMs)})`);
 		} else {
-			ok(`Ready: cd '${expDir}'`);
+			console.log(`  cd ${expDir}`);
 		}
 
 		console.log();
@@ -236,7 +236,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 
 		if (terminalType === "none") {
-			dim(`  cd ${expDir}`);
+			console.log(`  cd ${expDir}`);
 		}
 
 		console.log();
