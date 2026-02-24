@@ -32,6 +32,16 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	let terminalOverride: boolean | null = null; // null = auto-detect
 	let branchOverride: string | null = null;
 	const filteredArgs: string[] = [];
+	if (args.includes("--help") || args.includes("-h")) {
+		console.log(`
+  exp new "description"           Clone project into a new fork
+  exp new "desc" --from <id>      Clone from existing fork instead of project root
+  exp new "desc" --branch <name>  Use exact branch name (skip auto-prefix)
+  exp new "desc" --terminal       Open a new terminal window in fork
+  exp new "desc" --no-terminal    Suppress terminal (overrides auto_terminal config)
+`);
+		return;
+	}
 	for (let i = 0; i < args.length; i++) {
 		if (args[i] === "--from") {
 			fromId = args[i + 1] ?? null;
@@ -48,6 +58,12 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 	}
 	const description = filteredArgs.join(" ") || "fork";
+
+	// Auto-detect branch name: if description looks like a branch name
+	// (single token, no spaces, contains a slash or hyphen), use it directly
+	if (!branchOverride && filteredArgs.length === 1 && /^[^\s]+[-/][^\s]+$/.test(description)) {
+		branchOverride = description;
+	}
 
 	// Auto-detect: are we inside a fork?
 	const ctx = detectContext();
