@@ -147,23 +147,10 @@ export async function cmdInit(_config: ExpConfig) {
 	);
 
 	// ── Post-fork behavior ──
-	const existingAutoTerminal = existing.auto_terminal === "true";
-	const postForkAction = await select<"cd" | "terminal">({
-		message: "After forking, what should happen?",
-		default: existingAutoTerminal ? "terminal" : "cd",
-		choices: [
-			{
-				name: `cd into the fork ${c.dim("(recommended)")}`,
-				value: "cd" as const,
-			},
-			{
-				name: "open a new terminal window",
-				value: "terminal" as const,
-			},
-		],
+	const autoTerminal = await confirm({
+		message: "Open a new terminal window after forking?",
+		default: existing.auto_terminal === "true",
 	});
-
-	const autoTerminal = postForkAction === "terminal";
 
 	// ── Terminal type ──
 	const detected = detectTerminal();
