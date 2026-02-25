@@ -13,6 +13,7 @@ import {
 	writeMetadata,
 } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
+import { writeCdTarget } from "../utils/cd-file.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import { exec, execCheck } from "../utils/shell.ts";
 import { startSpinner } from "../utils/spinner.ts";
@@ -187,6 +188,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	const totalMs = performance.now() - t0;
 
+	// Tell the shell wrapper to cd into the fork
+	const wrapperActive = writeCdTarget(expDir);
+
 	// ── Output ──
 
 	if (config.json) {
@@ -237,7 +241,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		if (terminalType !== "none") {
 			ok(`Terminal open (${fmt(terminalMs)})`);
-		} else {
+		} else if (!wrapperActive) {
 			console.log(`  cd ${expDir}`);
 		}
 
@@ -251,7 +255,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			dim(`  branch: ${branchName}`);
 		}
 
-		if (terminalType === "none") {
+		if (terminalType === "none" && !wrapperActive) {
 			console.log(`  cd ${expDir}`);
 		}
 

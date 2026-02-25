@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { existsSync, readdirSync } from "node:fs";
 import { cmdCd } from "./commands/cd.ts";
 import { cmdCleanExport } from "./commands/clean-export.ts";
 import { cmdDiff } from "./commands/diff.ts";
@@ -9,12 +10,16 @@ import { cmdLs } from "./commands/ls.ts";
 import { cmdNew } from "./commands/new.ts";
 import { cmdNuke } from "./commands/nuke.ts";
 import { cmdOpen } from "./commands/open.ts";
+import { cmdShellInit } from "./commands/shell-init.ts";
 import { cmdStatus } from "./commands/status.ts";
 import { cmdTrash } from "./commands/trash.ts";
-import { loadConfig } from "./core/config.ts";
-import { err } from "./utils/colors.ts";
+import type { ExpConfig } from "./core/config.ts";
+import { CONFIG_PATH, loadConfig } from "./core/config.ts";
+import { getExpBase } from "./core/experiment.ts";
+import { getProjectRoot } from "./core/project.ts";
+import { c, dim, err, info } from "./utils/colors.ts";
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 function printHelp() {
 	console.log(`
@@ -22,7 +27,7 @@ function printHelp() {
 
   WORKFLOW
     /export                       <- optional: save Claude session to file
-    exp new "try redis caching"   <- instant clone, terminal opens
+    exp new "try redis caching"   <- instant clone, cd into it
     exp clean-export              <- remove export from original (clone keeps it)
 
   COMMANDS
@@ -33,12 +38,13 @@ function printHelp() {
     exp ls [--detail]         List forks (--detail for git status + divergence)
     exp open <id>             Open terminal in fork
     exp diff <id>             What changed vs original (git-native when available)
-    exp home                  Print original project path (use: cd $(exp home))
     exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
     exp nuke                  Delete ALL forks (interactive only — requires human)
-    exp cd <id>               Print path (use: cd $(exp cd 3))
+    exp cd <id>               Change to fork directory (with shell-init)
+    exp home                  Change to original project (with shell-init)
     exp status                Project info
     exp clean-export          Remove /export files from original after cloning
+    exp shell-init [shell]    Print shell integration (zsh/bash/fish)
 
   IDs
     Number (1), full name (001-try-redis), or partial match (redis).
@@ -61,10 +67,48 @@ function printHelp() {
     --terminal           Open a new terminal window in fork
     --no-terminal        Suppress terminal (overrides auto_terminal)
 
+  SHELL INTEGRATION
+    Add to your shell config for direct cd support:
+      eval "$(exp shell-init)"          # zsh (~/.zshrc)
+      eval "$(exp shell-init bash)"     # bash (~/.bashrc)
+      exp shell-init fish | source      # fish (~/.config/fish/config.fish)
+
+    With this, \`exp cd 11\` and \`exp new "foo"\` change your directory automatically.
+
   HOW IT WORKS
     macOS clonefile(2) syscall: atomic copy-on-write clone of entire directory.
     .env, .git, node_modules, exports — everything comes along, near-zero disk.
 `);
+}
+
+function printContextHint(config: ExpConfig) {
+	if (!process.stdout.isTTY) return;
+
+	const hasConfig = existsSync(CONFIG_PATH);
+
+	if (!hasConfig) {
+		dim(`  First time? Run: ${c.cyan("exp init")}`);
+		console.log();
+		return;
+	}
+
+	// Show fork count for current project if we're in one
+	try {
+		const root = getProjectRoot();
+		const base = getExpBase(root, config);
+		if (existsSync(base)) {
+			const forks = readdirSync(base).filter((f) => /^\d{3}-/.test(f));
+			if (forks.length > 0) {
+				const s = forks.length === 1 ? "" : "s";
+				info(`${forks.length} active fork${s} — run: ${c.cyan("exp ls")}`);
+			} else {
+				dim(`  No forks yet — run: ${c.cyan('exp new "description"')}`);
+			}
+			console.log();
+		}
+	} catch {
+		// Not in a project directory — that's fine, skip the hint
+	}
 }
 
 async function main() {
@@ -73,7 +117,7 @@ async function main() {
 		rawArgs.includes("--verbose") || rawArgs.includes("--debug") || process.env.EXP_DEBUG === "1";
 	const json = rawArgs.includes("--json");
 	const args = rawArgs.filter((a) => a !== "--verbose" && a !== "--debug" && a !== "--json");
-	const cmd = args[0] ?? "help";
+	const cmd = args[0] ?? "";
 	const rest = args.slice(1);
 	const config = loadConfig();
 	config.verbose = verbose;
@@ -107,7 +151,7 @@ async function main() {
 				await cmdOpen(rest[0], config);
 				break;
 			case "cd":
-				cmdCd(rest[0], config);
+				await cmdCd(rest[0], config);
 				break;
 			case "home":
 			case "h":
@@ -124,10 +168,17 @@ async function main() {
 			case "ce":
 				cmdCleanExport();
 				break;
+			case "shell-init":
+				cmdShellInit(rest);
+				break;
 			case "help":
 			case "--help":
 			case "-h":
 				printHelp();
+				break;
+			case "":
+				printHelp();
+				printContextHint(config);
 				break;
 			case "--version":
 			case "-v":

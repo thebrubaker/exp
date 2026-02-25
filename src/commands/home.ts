@@ -1,5 +1,6 @@
 import type { ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
+import { writeCdTarget } from "../utils/cd-file.ts";
 import { dim } from "../utils/colors.ts";
 
 export function cmdHome(_config: ExpConfig) {
@@ -10,6 +11,7 @@ export function cmdHome(_config: ExpConfig) {
 		return;
 	}
 
-	// Print just the path (so it works with: cd $(exp home))
-	console.log(ctx.originalRoot);
+	if (!writeCdTarget(ctx.originalRoot)) {
+		console.log(ctx.originalRoot);
+	}
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.0 — 2026-02-25
+
+- Shell integration: `exp cd 11` now actually changes your directory (via shell wrapper)
+- Add `exp shell-init` command — outputs shell wrapper function for zsh, bash, and fish
+- `exp cd` proactively offers to install shell integration on first use without wrapper (asks once, remembers if declined)
+- `exp init` now includes shell integration step — detects shell, offers to append eval line to rc file
+- `exp new` auto-cd's into the fork when shell wrapper is active
+- `exp home` auto-cd's to original project when shell wrapper is active
+- Context-aware bare `exp`: shows "First time? Run: exp init" or fork count for current project
+- Idempotent `exp init`: skips pitch on reconfigure, pre-fills existing values as defaults
+- Fix `writeConfig` to merge with existing config instead of replacing (preserves custom keys like `root`)
+- Improve `exp cd` with no args to suggest `exp ls`
+
 ## v0.4.0 — 2026-02-16
 
 - Configurable branch naming: `branch_prefix` config / `EXP_BRANCH_PREFIX` env var (default: git first name or "exp")

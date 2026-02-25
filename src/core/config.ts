@@ -74,6 +74,7 @@ export function readRawConfig(): Record<string, string> {
 
 /**
  * Write config values to ~/.config/exp.
+ * Merges with existing config so unknown keys aren't lost.
  * Ensures the parent directory exists.
  */
 export function writeConfig(values: Record<string, string>): void {
@@ -82,9 +83,13 @@ export function writeConfig(values: Record<string, string>): void {
 		mkdirSync(dir, { recursive: true });
 	}
 
+	// Merge: existing values as base, new values override
+	const existing = readConfigFile();
+	const merged = { ...existing, ...values };
+
 	const lines = ["# exp configuration — https://github.com/thebrubaker/exp", ""];
 
-	for (const [key, value] of Object.entries(values)) {
+	for (const [key, value] of Object.entries(merged)) {
 		lines.push(`${key}=${value}`);
 	}
 
