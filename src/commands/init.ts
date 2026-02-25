@@ -153,11 +153,11 @@ export async function cmdInit(_config: ExpConfig) {
 		default: existingAutoTerminal ? "terminal" : "cd",
 		choices: [
 			{
-				name: `cd — print the fork path ${c.dim("(recommended)")}`,
+				name: `cd into the fork ${c.dim("(recommended)")}`,
 				value: "cd" as const,
 			},
 			{
-				name: "terminal — open a new terminal window",
+				name: "open a new terminal window",
 				value: "terminal" as const,
 			},
 		],
