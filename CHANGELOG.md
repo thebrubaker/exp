@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.0 — 2026-02-25
+
+- `exp ls` is fast now — dropped diverged size calculation from compact mode (was ~2s, now instant)
+- Color-coded status dots in `exp ls`: green (clean), yellow (modified), red (unpushed commits)
+- Column width capping: name 30 chars, description 40 chars, with ellipsis truncation
+- Hide description column when it duplicates the fork name slug
+- `exp trash` with no args inside a fork offers to self-trash, cd's back to project root
+- `exp trash` now shows diverged size instead of misleading full apparent size (was showing 9.6G for a 3.4MB fork)
+- `exp trash` prints elapsed time after deletion
+- `exp new` auto-adds `.exp` to fork's `.gitignore` (no more accidental metadata commits)
+- `exp new` marks `CLAUDE.md` as `assume-unchanged` in forks (seeding stays local)
+
 ## v0.5.0 — 2026-02-25
 
 - Shell integration: `exp cd 11` now actually changes your directory (via shell wrapper)
