@@ -1,7 +1,15 @@
 import { existsSync } from "node:fs";
 import { exec } from "../utils/shell.ts";
 
-export const DIFF_EXCLUDES = ["node_modules", ".git", ".exp", ".next", ".turbo", "dist", ".DS_Store"];
+export const DIFF_EXCLUDES = [
+	"node_modules",
+	".git",
+	".exp",
+	".next",
+	".turbo",
+	"dist",
+	".DS_Store",
+];
 
 export async function getDivergedSize(sourceRoot: string, expDir: string): Promise<string> {
 	// Run diff -rq to find files that differ

@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatBytes } from "../src/commands/ls.ts";
+import { descriptionMatchesSlug, extractSlug, truncate } from "../src/commands/ls.ts";
+import { formatBytes } from "../src/core/divergence.ts";
 
 const TMP = "/tmp/exp-test-ls";
 
@@ -44,6 +45,71 @@ describe("formatBytes", () => {
 		expect(formatBytes(1)).toBe("~1B");
 		expect(formatBytes(1023)).toBe("~1023B");
 		expect(formatBytes(1024 * 1024 - 1)).toBe("~1024.0KB");
+	});
+});
+
+describe("truncate", () => {
+	test("returns short strings unchanged", () => {
+		expect(truncate("hello", 30)).toBe("hello");
+	});
+
+	test("returns string at exact cap unchanged", () => {
+		const str = "a".repeat(30);
+		expect(truncate(str, 30)).toBe(str);
+	});
+
+	test("truncates long strings with ellipsis", () => {
+		const str = "a".repeat(35);
+		expect(truncate(str, 30)).toBe(`${"a".repeat(29)}\u2026`);
+		expect(truncate(str, 30).length).toBe(30);
+	});
+
+	test("handles empty string", () => {
+		expect(truncate("", 30)).toBe("");
+	});
+
+	test("truncates at cap of 1", () => {
+		expect(truncate("ab", 1)).toBe("\u2026");
+	});
+});
+
+describe("extractSlug", () => {
+	test("strips numeric prefix", () => {
+		expect(extractSlug("001-try-redis")).toBe("try-redis");
+	});
+
+	test("handles multi-digit prefix", () => {
+		expect(extractSlug("123-my-feature")).toBe("my-feature");
+	});
+
+	test("returns full name if no numeric prefix", () => {
+		expect(extractSlug("no-prefix")).toBe("no-prefix");
+	});
+
+	test("handles single-digit prefix", () => {
+		expect(extractSlug("1-quick")).toBe("quick");
+	});
+});
+
+describe("descriptionMatchesSlug", () => {
+	test("empty description matches any slug", () => {
+		expect(descriptionMatchesSlug("", "001-try-redis")).toBe(true);
+	});
+
+	test("exact description matches slug", () => {
+		expect(descriptionMatchesSlug("try redis", "001-try-redis")).toBe(true);
+	});
+
+	test("description with capitals matches slug", () => {
+		expect(descriptionMatchesSlug("Try Redis", "001-try-redis")).toBe(true);
+	});
+
+	test("different description does not match", () => {
+		expect(descriptionMatchesSlug("something else entirely", "001-try-redis")).toBe(false);
+	});
+
+	test("description with special chars matches after slugification", () => {
+		expect(descriptionMatchesSlug("try: redis!", "001-try-redis")).toBe(true);
 	});
 });
 

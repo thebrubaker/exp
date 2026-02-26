@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { seedClaudeMd } from "../core/claude.ts";
 import { cleanPostClone, cloneProject } from "../core/clone.ts";
@@ -127,6 +127,18 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num, fromExpName);
 
+	// Add .exp to fork's .gitignore so metadata doesn't get committed
+	spinner.update("Configuring gitignore...");
+	const gitignorePath = `${expDir}/.gitignore`;
+	if (existsSync(gitignorePath)) {
+		const content = readFileSync(gitignorePath, "utf-8");
+		if (!content.split("\n").some((line) => line.trim() === ".exp")) {
+			appendFileSync(gitignorePath, "\n# exp metadata\n.exp\n");
+		}
+	} else {
+		writeFileSync(gitignorePath, "# exp metadata\n.exp\n");
+	}
+
 	// Create git branch for PR workflow
 	let branchName: string | null = null;
 	if (existsSync(`${expDir}/.git`)) {
@@ -141,6 +153,11 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		if (!branchResult.success) {
 			warn(`Could not create branch ${branchName}: ${branchResult.stderr.trim()}`);
 			branchName = null;
+		}
+
+		// Mark CLAUDE.md as assume-unchanged so exp seeding doesn't show in git status
+		if (existsSync(`${expDir}/CLAUDE.md`)) {
+			await exec(["git", "-C", expDir, "update-index", "--assume-unchanged", "CLAUDE.md"]);
 		}
 	}
 

@@ -2,11 +2,13 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
 import { getDivergedSize, getFileDivergence, getGitStatus } from "../core/divergence.ts";
-import { getExpBase, readMetadata } from "../core/experiment.ts";
+import { getExpBase, readMetadata, slugify } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
 import { timeAgo } from "../utils/time.ts";
+
+type ForkStatus = "clean" | "modified" | "unpushed";
 
 interface ExpEntry {
 	dirName: string;
@@ -14,14 +16,18 @@ interface ExpEntry {
 	description: string;
 	created: string;
 	status: string;
-	size: string;
+	forkStatus: ForkStatus;
 }
 
-interface ExpDetailEntry extends ExpEntry {
+interface ExpDetailEntry extends Omit<ExpEntry, "forkStatus"> {
 	gitStatus: string;
 	fileDivergence: string;
 	divergedSize: string;
+	size: string;
 }
+
+const NAME_CAP = 30;
+const DESC_CAP = 40;
 
 export async function cmdLs(args: string[], config: ExpConfig) {
 	const all = args.includes("--all");
@@ -66,20 +72,80 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 	}
 }
 
+/** Truncate a string to maxLen, appending ellipsis if needed */
+export function truncate(str: string, maxLen: number): string {
+	if (str.length <= maxLen) return str;
+	return `${str.slice(0, maxLen - 1)}\u2026`;
+}
+
+/** Extract the slug portion from a fork dir name (e.g., "001-try-redis" -> "try-redis") */
+export function extractSlug(dirName: string): string {
+	return dirName.replace(/^\d+-/, "");
+}
+
+/** Check if description is effectively the same as the slug */
+export function descriptionMatchesSlug(description: string, dirName: string): boolean {
+	if (!description) return true;
+	const slug = extractSlug(dirName);
+	return slugify(description) === slug;
+}
+
+/** Detect fork status: clean, modified, or unpushed */
+async function detectForkStatus(expDir: string): Promise<ForkStatus> {
+	if (!existsSync(`${expDir}/.git`)) return "modified";
+
+	// Check for uncommitted changes
+	const porcelain = await exec(["git", "status", "--porcelain"], { cwd: expDir });
+	const hasUncommitted = porcelain.success && porcelain.stdout.trim().length > 0;
+
+	if (hasUncommitted) return "modified";
+
+	// Check for unpushed commits
+	const unpushed = await exec(["git", "log", "@{u}..HEAD", "--oneline"], { cwd: expDir });
+	// If command succeeds and has output, there are unpushed commits
+	if (unpushed.success && unpushed.stdout.trim().length > 0) return "unpushed";
+	// If command fails (no upstream tracking), treat as modified
+	if (!unpushed.success) return "modified";
+
+	return "clean";
+}
+
+/** Render a colored status dot */
+function statusDot(status: ForkStatus): string {
+	switch (status) {
+		case "clean":
+			return c.green("\u25cf");
+		case "modified":
+			return c.yellow("\u25cf");
+		case "unpushed":
+			return c.red("\u25cf");
+	}
+}
+
+/** Print the status legend */
+function printLegend() {
+	console.log(
+		c.dim(
+			`  ${c.green("\u25cf")} clean  ${c.yellow("\u25cf")} modified  ${c.red("\u25cf")} unpushed`,
+		),
+	);
+	console.log();
+}
+
 async function printCompact(
 	entries: { name: string }[],
 	base: string,
-	sourceRoot: string,
+	_sourceRoot: string,
 	projectName: string,
 ) {
-	// Gather diverged sizes in parallel
-	const sizePromises = entries.map(async (entry) => {
+	// Gather fork statuses in parallel (fast: just git status + git log per fork)
+	const statusPromises = entries.map(async (entry) => {
 		const expDir = `${base}/${entry.name}`;
-		const size = await getDivergedSize(sourceRoot, expDir);
-		return { name: entry.name, size };
+		const forkStatus = await detectForkStatus(expDir);
+		return { name: entry.name, forkStatus };
 	});
-	const sizes = await Promise.all(sizePromises);
-	const sizeMap = new Map(sizes.map((s) => [s.name, s.size]));
+	const statuses = await Promise.all(statusPromises);
+	const statusMap = new Map(statuses.map((s) => [s.name, s.forkStatus]));
 
 	// Build row data
 	const rows: ExpEntry[] = entries.map((entry) => {
@@ -91,13 +157,19 @@ async function printCompact(
 			description: meta?.description ?? "",
 			created: meta?.created ?? "",
 			status: meta?.status ?? "active",
-			size: sizeMap.get(entry.name) ?? "?",
+			forkStatus: statusMap.get(entry.name) ?? "modified",
 		};
 	});
 
-	// Calculate column widths for alignment
-	const maxName = Math.max(...rows.map((r) => r.dirName.length));
-	const maxDesc = Math.max(...rows.map((r) => r.description.length));
+	// Determine if description column should be shown
+	const allDescsMatchSlug = rows.every((r) => descriptionMatchesSlug(r.description, r.dirName));
+	const showDesc = !allDescsMatchSlug;
+
+	// Calculate column widths with caps
+	const maxName = Math.min(NAME_CAP, Math.max(...rows.map((r) => r.dirName.length)));
+	const maxDesc = showDesc
+		? Math.min(DESC_CAP, Math.max(...rows.map((r) => r.description.length)))
+		: 0;
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
 	console.log();
@@ -105,15 +177,20 @@ async function printCompact(
 	console.log();
 
 	for (const row of rows) {
-		const nameCol = c.bold(row.dirName.padEnd(maxName));
-		const descCol = c.dim(row.description.padEnd(maxDesc));
+		const dot = statusDot(row.forkStatus);
+		const nameCol = c.bold(truncate(row.dirName, NAME_CAP).padEnd(maxName));
 		const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
-		const sizeCol = c.dim(`${row.size} extra`.padStart(12));
 
-		console.log(`  ${nameCol}  ${descCol}  ${timeCol}  ${sizeCol}`);
+		if (showDesc) {
+			const descCol = c.dim(truncate(row.description, DESC_CAP).padEnd(maxDesc));
+			console.log(`  ${dot} ${nameCol}  ${descCol}  ${timeCol}`);
+		} else {
+			console.log(`  ${dot} ${nameCol}  ${timeCol}`);
+		}
 	}
 
 	console.log();
+	printLegend();
 }
 
 async function printDetail(
@@ -191,7 +268,6 @@ async function printGlobal(detail: boolean, config: ExpConfig) {
 
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
-			const sourceRoot = join(scanPath, projectName);
 
 			const forks = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
@@ -201,15 +277,41 @@ async function printGlobal(detail: boolean, config: ExpConfig) {
 
 			found = true;
 
+			// Build row data for this project
+			const rows = forks.map((f) => {
+				const expDir = join(base, f.name);
+				const meta = readMetadata(expDir);
+				return {
+					dirName: f.name,
+					description: meta?.description ?? "",
+					created: meta?.created ?? "",
+				};
+			});
+
+			// Determine if description column should be shown
+			const allDescsMatchSlug = rows.every((r) => descriptionMatchesSlug(r.description, r.dirName));
+			const showDesc = !allDescsMatchSlug;
+
+			// Calculate column widths with caps
+			const maxName = Math.min(NAME_CAP, Math.max(...rows.map((r) => r.dirName.length)));
+			const maxDesc = showDesc
+				? Math.min(DESC_CAP, Math.max(...rows.map((r) => r.description.length)))
+				: 0;
+			const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
+
 			console.log();
 			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${forks.length} forks)`)}`);
 
-			for (const f of forks) {
-				const expDir = join(base, f.name);
-				const meta = readMetadata(expDir);
-				const desc = meta?.description ?? "";
-				const time = meta?.created ? timeAgo(meta.created) : "?";
-				console.log(`  ${c.bold(f.name)}  ${c.dim(desc)}  ${c.dim(time)}`);
+			for (const row of rows) {
+				const nameCol = c.bold(truncate(row.dirName, NAME_CAP).padEnd(maxName));
+				const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
+
+				if (showDesc) {
+					const descCol = c.dim(truncate(row.description, DESC_CAP).padEnd(maxDesc));
+					console.log(`  ${nameCol}  ${descCol}  ${timeCol}`);
+				} else {
+					console.log(`  ${nameCol}  ${timeCol}`);
+				}
 			}
 		}
 	}
