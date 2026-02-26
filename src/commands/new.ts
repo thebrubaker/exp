@@ -15,14 +15,10 @@ import {
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { writeCdTarget } from "../utils/cd-file.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
+import { fmt } from "../utils/format.ts";
 import { exec, execCheck } from "../utils/shell.ts";
 import { startSpinner } from "../utils/spinner.ts";
 import { detectTerminal, openTerminalAt } from "../utils/terminal.ts";
-
-function fmt(ms: number): string {
-	if (ms < 1000) return `${Math.round(ms)}ms`;
-	return `${(ms / 1000).toFixed(1)}s`;
-}
 
 export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
