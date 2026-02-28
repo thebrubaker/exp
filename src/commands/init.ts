@@ -146,6 +146,12 @@ export async function cmdInit(_config: ExpConfig) {
 		c.bold(isReconfigure ? "  Update your preferences.\n" : "  Let's set up your preferences.\n"),
 	);
 
+	// ── Auto-cd ──
+	const autoCd = await confirm({
+		message: "Auto-cd into forks after creating them?",
+		default: existing.auto_cd !== "false",
+	});
+
 	// ── Post-fork behavior ──
 	const autoTerminal = await confirm({
 		message: "Open a new terminal window after forking?",
@@ -261,6 +267,7 @@ export async function cmdInit(_config: ExpConfig) {
 	// ── Write config ──
 	const values: Record<string, string> = {};
 
+	values.auto_cd = String(autoCd);
 	values.terminal = terminal;
 	values.auto_terminal = String(autoTerminal);
 
@@ -276,23 +283,15 @@ export async function cmdInit(_config: ExpConfig) {
 
 	writeConfig(values);
 
-	// ── Shell integration ──
-	const shell = detectShell();
-	if (isShellIntegrationInstalled(shell)) {
-		ok(`Shell integration already installed ${c.dim(`(${getRcFile(shell)})`)}`);
-	} else {
-		console.log();
-		const shouldInstall = await confirm({
-			message: `Enable direct cd support? ${c.dim(`(adds to ${getRcFile(shell)})`)}`,
-			default: true,
-		});
-
-		if (shouldInstall) {
+	// ── Shell integration (driven by auto-cd preference) ──
+	if (autoCd) {
+		const shell = detectShell();
+		if (isShellIntegrationInstalled(shell)) {
+			ok(`Shell integration already installed ${c.dim(`(${getRcFile(shell)})`)}`);
+		} else {
 			const { rcFile } = installShellIntegration(shell);
 			ok(`Shell integration added to ${rcFile}`);
 			dim(`  Restart your shell or run: source ${rcFile}`);
-		} else {
-			dim("  You can enable it later: exp shell-init --help");
 		}
 	}
 
