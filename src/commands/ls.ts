@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { getDivergedSize, getFileDivergence, getGitStatus } from "../core/divergence.ts";
 import { getExpBase, readMetadata, slugify } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
@@ -13,6 +14,7 @@ type ForkStatus = "clean" | "modified" | "unpushed";
 interface ExpEntry {
 	dirName: string;
 	expDir: string;
+	source: string;
 	description: string;
 	created: string;
 	status: string;
@@ -47,7 +49,11 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		return;
 	}
 
-	const root = getProjectRoot();
+	// When inside a fork, list from the original project root so the user
+	// sees the full sibling list rather than forks-of-this-fork only.
+	const ctx = detectContext();
+	const root = ctx.isFork ? ctx.originalRoot : getProjectRoot();
+	const currentForkDir = ctx.isFork ? ctx.expDir : null;
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
@@ -68,7 +74,7 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 	if (detail) {
 		await printDetail(entries, base, root, name);
 	} else {
-		await printCompact(entries, base, root, name);
+		await printCompact(entries, base, root, name, currentForkDir);
 	}
 }
 
@@ -137,6 +143,7 @@ async function printCompact(
 	base: string,
 	_sourceRoot: string,
 	projectName: string,
+	currentForkDir: string | null = null,
 ) {
 	// Gather fork statuses in parallel (fast: just git status + git log per fork)
 	const statusPromises = entries.map(async (entry) => {
@@ -147,13 +154,14 @@ async function printCompact(
 	const statuses = await Promise.all(statusPromises);
 	const statusMap = new Map(statuses.map((s) => [s.name, s.forkStatus]));
 
-	// Build row data
+	// Build row data (include source for parent-child grouping)
 	const rows: ExpEntry[] = entries.map((entry) => {
 		const expDir = `${base}/${entry.name}`;
 		const meta = readMetadata(expDir);
 		return {
 			dirName: entry.name,
 			expDir,
+			source: meta?.source ?? "",
 			description: meta?.description ?? "",
 			created: meta?.created ?? "",
 			status: meta?.status ?? "active",
@@ -161,31 +169,57 @@ async function printCompact(
 		};
 	});
 
-	// Determine if description column should be shown
+	// Group: top-level forks vs children (source points to another fork dir)
+	const forkDirSet = new Set(rows.map((r) => r.expDir));
+	const topLevel = rows.filter((r) => !forkDirSet.has(r.source));
+	const childrenByParent = new Map<string, ExpEntry[]>();
+	for (const row of rows) {
+		if (forkDirSet.has(row.source)) {
+			const arr = childrenByParent.get(row.source) ?? [];
+			arr.push(row);
+			childrenByParent.set(row.source, arr);
+		}
+	}
+
+	// Determine if description column should be shown (across all rows)
 	const allDescsMatchSlug = rows.every((r) => descriptionMatchesSlug(r.description, r.dirName));
 	const showDesc = !allDescsMatchSlug;
 
-	// Calculate column widths with caps
+	// Calculate column widths with caps (across all rows for alignment)
 	const maxName = Math.min(NAME_CAP, Math.max(...rows.map((r) => r.dirName.length)));
 	const maxDesc = showDesc
 		? Math.min(DESC_CAP, Math.max(...rows.map((r) => r.description.length)))
 		: 0;
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
+	// Header: note if we're viewing from inside a fork
+	const currentForkEntry = currentForkDir ? rows.find((r) => r.expDir === currentForkDir) : null;
+	const headerSuffix = currentForkEntry ? c.dim(` (inside ${currentForkEntry.dirName})`) : "";
+
 	console.log();
-	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}`);
+	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}${headerSuffix}`);
 	console.log();
 
-	for (const row of rows) {
+	function printRow(row: ExpEntry, indent = "") {
+		const isCurrent = currentForkDir !== null && row.expDir === currentForkDir;
+		const prefix = isCurrent ? c.cyan("→") : " ";
 		const dot = statusDot(row.forkStatus);
-		const nameCol = c.bold(truncate(row.dirName, NAME_CAP).padEnd(maxName));
+		const nameCol = (isCurrent ? c.bold(c.cyan(truncate(row.dirName, NAME_CAP))) : c.bold(truncate(row.dirName, NAME_CAP))).padEnd(maxName);
 		const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
 
 		if (showDesc) {
 			const descCol = c.dim(truncate(row.description, DESC_CAP).padEnd(maxDesc));
-			console.log(`  ${dot} ${nameCol}  ${descCol}  ${timeCol}`);
+			console.log(`${indent}${prefix} ${dot} ${nameCol}  ${descCol}  ${timeCol}`);
 		} else {
-			console.log(`  ${dot} ${nameCol}  ${timeCol}`);
+			console.log(`${indent}${prefix} ${dot} ${nameCol}  ${timeCol}`);
+		}
+	}
+
+	for (const row of topLevel) {
+		printRow(row, " ");
+		const children = childrenByParent.get(row.expDir) ?? [];
+		for (const child of children) {
+			printRow(child, "   \u2514 ");
 		}
 	}
 
@@ -214,6 +248,7 @@ async function printDetail(
 		return {
 			dirName: entry.name,
 			expDir,
+			source: meta?.source ?? "",
 			description: meta?.description ?? "",
 			created: meta?.created ?? "",
 			status: meta?.status ?? "active",
@@ -243,7 +278,7 @@ async function printDetail(
 	}
 }
 
-async function printGlobal(detail: boolean, config: ExpConfig) {
+async function printGlobal(_detail: boolean, config: ExpConfig) {
 	// Scan common locations for .exp-* directories
 	const scanPaths = [
 		process.env.HOME ? `${process.env.HOME}/Code` : null,
