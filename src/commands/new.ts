@@ -141,6 +141,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	// Create git branch for PR workflow
 	let branchName: string | null = null;
+	let branchReused = false;
 	if (existsSync(`${expDir}/.git`)) {
 		if (branchOverride) {
 			branchName = branchOverride;
@@ -151,8 +152,14 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		spinner.update(`Creating branch ${branchName}...`);
 		const branchResult = await exec(["git", "-C", expDir, "checkout", "-b", branchName]);
 		if (!branchResult.success) {
-			warn(`Could not create branch ${branchName}: ${branchResult.stderr.trim()}`);
-			branchName = null;
+			// Branch may already exist — try switching to it instead
+			const switchResult = await exec(["git", "-C", expDir, "checkout", branchName]);
+			if (switchResult.success) {
+				branchReused = true;
+			} else {
+				warn(`Could not create branch ${branchName}: ${branchResult.stderr.trim()}`);
+				branchName = null;
+			}
 		}
 
 		// Mark CLAUDE.md as assume-unchanged so exp seeding doesn't show in git status
@@ -214,6 +221,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 				path: expDir,
 				source: cloneSource,
 				branch: branchName,
+				branchReused,
 				method,
 				terminal: terminalType,
 				description,
@@ -240,7 +248,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 
 		if (branchName) {
-			ok(`Branch: ${c.cyan(branchName)}`);
+			ok(`Branch: ${c.cyan(branchName)}${branchReused ? c.dim(" (already existed, switched to it)") : ""}`);
 		}
 
 		const hasNextConfig =
@@ -265,7 +273,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		ok(`${c.bold(expName)} ${c.dim(`cloned in ${fmt(totalMs)}`)}`);
 
 		if (branchName) {
-			dim(`  branch: ${branchName}`);
+			dim(`  branch: ${branchName}${branchReused ? " (already existed)" : ""}`);
 		}
 
 		if (terminalType === "none" && !wrapperActive) {
