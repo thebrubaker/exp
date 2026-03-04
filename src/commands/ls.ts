@@ -181,14 +181,16 @@ async function printCompact(
 		}
 	}
 
-	// Determine if description column should be shown (across all rows)
-	const allDescsMatchSlug = rows.every((r) => descriptionMatchesSlug(r.description, r.dirName));
-	const showDesc = !allDescsMatchSlug;
+	// Show description column if any row has a non-slug description.
+	// Per-cell: blank out descriptions that just echo the slug (reduces noise).
+	const showDesc = rows.some((r) => !descriptionMatchesSlug(r.description, r.dirName));
+	const meaningfulDesc = (row: ExpEntry) =>
+		descriptionMatchesSlug(row.description, row.dirName) ? "" : row.description;
 
-	// Calculate column widths with caps (across all rows for alignment)
+	// Column widths — pad plain strings BEFORE colorizing (ANSI codes inflate length)
 	const maxName = Math.min(NAME_CAP, Math.max(...rows.map((r) => r.dirName.length)));
 	const maxDesc = showDesc
-		? Math.min(DESC_CAP, Math.max(...rows.map((r) => r.description.length)))
+		? Math.min(DESC_CAP, Math.max(...rows.map((r) => meaningfulDesc(r).length)))
 		: 0;
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
@@ -200,26 +202,39 @@ async function printCompact(
 	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}${headerSuffix}`);
 	console.log();
 
-	function printRow(row: ExpEntry, indent = "") {
+	// Row format: [prefix][dot] [name]  [desc]  [time]
+	// Top-level prefix is 2 chars ("X "), child prefix is 6 chars ("X   └ ").
+	// To keep desc/time columns aligned, child name column is narrowed by the
+	// 4-char difference so the total width (prefix + name) stays constant.
+	const CHILD_EXTRA = 4; // child prefix is 4 chars wider than top-level
+
+	function printRow(row: ExpEntry, isChild: boolean) {
 		const isCurrent = currentForkDir !== null && row.expDir === currentForkDir;
-		const prefix = isCurrent ? c.cyan("→") : " ";
+		const arrow = isCurrent ? c.cyan("→") : " ";
 		const dot = statusDot(row.forkStatus);
-		const nameCol = (isCurrent ? c.bold(c.cyan(truncate(row.dirName, NAME_CAP))) : c.bold(truncate(row.dirName, NAME_CAP))).padEnd(maxName);
+
+		// prefix: top-level = "X " (2 chars), child = "X   └ " (6 chars)
+		const prefix = isChild ? `${arrow}   ${c.dim("└")} ` : `${arrow} `;
+
+		// Narrow the name column for children to compensate for the wider prefix
+		const nameWidth = isChild ? maxName - CHILD_EXTRA : maxName;
+		const namePadded = truncate(row.dirName, nameWidth).padEnd(nameWidth);
+		const nameCol = isCurrent ? c.bold(c.cyan(namePadded)) : c.bold(namePadded);
 		const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
 
 		if (showDesc) {
-			const descCol = c.dim(truncate(row.description, DESC_CAP).padEnd(maxDesc));
-			console.log(`${indent}${prefix} ${dot} ${nameCol}  ${descCol}  ${timeCol}`);
+			const rawDesc = truncate(meaningfulDesc(row), DESC_CAP);
+			const descCol = c.dim(rawDesc.padEnd(maxDesc));
+			console.log(`${prefix}${dot} ${nameCol}  ${descCol}  ${timeCol}`);
 		} else {
-			console.log(`${indent}${prefix} ${dot} ${nameCol}  ${timeCol}`);
+			console.log(`${prefix}${dot} ${nameCol}  ${timeCol}`);
 		}
 	}
 
 	for (const row of topLevel) {
-		printRow(row, " ");
-		const children = childrenByParent.get(row.expDir) ?? [];
-		for (const child of children) {
-			printRow(child, "   \u2514 ");
+		printRow(row, false);
+		for (const child of childrenByParent.get(row.expDir) ?? []) {
+			printRow(child, true);
 		}
 	}
 
