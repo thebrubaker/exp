@@ -6,12 +6,33 @@ exp() {
   cdfile=$(mktemp "\${TMPDIR:-/tmp}/exp-cd.XXXXXX")
   EXP_CD_FILE="$cdfile" command exp "$@"
   local rc=$?
-  local target
-  target=$(<"$cdfile" 2>/dev/null)
-  /bin/rm -f "$cdfile"
-  if [[ -n "$target" && "$target" != "$PWD" ]]; then
-    builtin cd "$target" || return
+  local line
+  if [[ -f "$cdfile" ]]; then
+    while IFS= read -r line; do
+      case "$line" in
+        cd:*)
+          local target="\${line#cd:}"
+          if [[ -n "$target" && "$target" != "$PWD" ]]; then
+            builtin cd "$target" || true
+          fi
+          ;;
+        defer:*)
+          local payload="\${line#defer:}"
+          local src="\${payload%%:*}"
+          local dst="\${payload#*:}"
+          /bin/cp -cR "$src" "$dst" &>/dev/null &
+          disown 2>/dev/null
+          ;;
+        *)
+          # Backwards compat: bare path = cd target
+          if [[ -n "$line" && "$line" != "$PWD" ]]; then
+            builtin cd "$line" || true
+          fi
+          ;;
+      esac
+    done < "$cdfile"
   fi
+  /bin/rm -f "$cdfile"
   return $rc
 }
 `.trimStart();
@@ -22,12 +43,32 @@ exp() {
   cdfile=$(mktemp "\${TMPDIR:-/tmp}/exp-cd.XXXXXX")
   EXP_CD_FILE="$cdfile" command exp "$@"
   local rc=$?
-  local target
-  target=$(cat "$cdfile" 2>/dev/null)
-  /bin/rm -f "$cdfile"
-  if [[ -n "$target" && "$target" != "$PWD" ]]; then
-    builtin cd "$target" || return
+  local line
+  if [[ -f "$cdfile" ]]; then
+    while IFS= read -r line; do
+      case "$line" in
+        cd:*)
+          local target="\${line#cd:}"
+          if [[ -n "$target" && "$target" != "$PWD" ]]; then
+            builtin cd "$target" || true
+          fi
+          ;;
+        defer:*)
+          local payload="\${line#defer:}"
+          local src="\${payload%%:*}"
+          local dst="\${payload#*:}"
+          /bin/cp -cR "$src" "$dst" &>/dev/null &
+          disown 2>/dev/null
+          ;;
+        *)
+          if [[ -n "$line" && "$line" != "$PWD" ]]; then
+            builtin cd "$line" || true
+          fi
+          ;;
+      esac
+    done < "$cdfile"
   fi
+  /bin/rm -f "$cdfile"
   return $rc
 }
 `.trimStart();
@@ -37,11 +78,28 @@ function exp
   set -l cdfile (mktemp (set -q TMPDIR; and echo $TMPDIR; or echo /tmp)"/exp-cd.XXXXXX")
   EXP_CD_FILE=$cdfile command exp $argv
   set -l rc $status
-  set -l target (cat $cdfile 2>/dev/null)
-  /bin/rm -f $cdfile
-  if test -n "$target" -a "$target" != "$PWD"
-    builtin cd $target
+  if test -f $cdfile
+    for line in (cat $cdfile 2>/dev/null)
+      switch $line
+        case 'cd:*'
+          set -l target (string replace 'cd:' '' $line)
+          if test -n "$target" -a "$target" != "$PWD"
+            builtin cd $target
+          end
+        case 'defer:*'
+          set -l payload (string replace 'defer:' '' $line)
+          set -l src (string split ':' $payload)[1]
+          set -l dst (string split ':' $payload)[2]
+          fish -c "/bin/cp -cR $src $dst" &
+          disown 2>/dev/null
+        case '*'
+          if test -n "$line" -a "$line" != "$PWD"
+            builtin cd $line
+          end
+      end
+    end
   end
+  /bin/rm -f $cdfile
   return $rc
 end
 `.trimStart();

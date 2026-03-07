@@ -1,10 +1,10 @@
 import { FFIType, dlopen } from "bun:ffi";
-import { existsSync, mkdirSync, readdirSync, rmSync, symlinkSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { dim } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
 
-export type CloneMethod = "clonefile" | "apfs" | "copy" | "symlink";
+export type CloneMethod = "clonefile" | "apfs" | "copy" | "fast";
 
 // macOS clonefile(2) — clones an entire directory tree in a single syscall.
 // This is the "instant" clone: one atomic operation, zero data copied,
@@ -62,93 +62,40 @@ export function cleanPostClone(expDir: string, dirs: string[]) {
 	}
 }
 
-// Dirs cloned atomically (never walked into, never symlinked)
-const NO_DESCEND = new Set([".git", ".next", ".turbo"]);
-// How deep to look for symlink targets in subdirectories
-const SYMLINK_SEARCH_DEPTH = 3;
-
-export interface SymlinkCloneResult {
-	method: "symlink";
-	symlinkedPaths: string[];
+export interface FastCloneResult {
+	method: "fast";
+	deferredPaths: string[];
 }
 
 /**
- * Symlink clone: walk source tree, clonefile each entry, but symlink
- * matching dirs back to source instead of copying them.
- * Returns the list of absolute source paths that were symlinked.
+ * Fast clone: root-scan the source, clonefile each top-level entry except
+ * deferred dirs (e.g. node_modules). Returns immediately so the user gets
+ * control back. Caller is responsible for cloning deferred dirs in background.
  */
-export function symlinkCloneProject(
+export function fastCloneProject(
 	source: string,
 	destination: string,
-	symlinkDirs: string[],
-): SymlinkCloneResult {
-	const symlinkSet = new Set(symlinkDirs);
-	const symlinkedPaths: string[] = [];
+	deferDirs: string[],
+): FastCloneResult {
+	const deferSet = new Set(deferDirs);
+	const deferredPaths: string[] = [];
 	mkdirSync(destination, { recursive: true });
-	walkAndClone(source, destination, symlinkSet, 0, symlinkedPaths);
-	return { method: "symlink", symlinkedPaths };
-}
 
-function walkAndClone(
-	srcDir: string,
-	dstDir: string,
-	symlinkDirs: Set<string>,
-	depth: number,
-	symlinkedPaths: string[],
-): void {
-	const entries = readdirSync(srcDir, { withFileTypes: true });
-
+	const entries = readdirSync(source, { withFileTypes: true });
 	for (const entry of entries) {
-		const name = entry.name;
-		const srcPath = join(srcDir, name);
-		const dstPath = join(dstDir, name);
+		const srcPath = join(source, entry.name);
+		const dstPath = join(destination, entry.name);
 
-		if (entry.isDirectory() && symlinkDirs.has(name)) {
-			symlinkSync(srcPath, dstPath);
-			symlinkedPaths.push(srcPath);
+		if (entry.isDirectory() && deferSet.has(entry.name)) {
+			deferredPaths.push(srcPath);
 			continue;
-		}
-
-		if (entry.isDirectory() && NO_DESCEND.has(name)) {
-			if (!tryClonefile(srcPath, dstPath)) {
-				throw new Error(`Failed to clonefile ${srcPath}`);
-			}
-			continue;
-		}
-
-		if (entry.isDirectory() && depth < SYMLINK_SEARCH_DEPTH) {
-			if (subtreeHasSymlinkTarget(srcPath, symlinkDirs, SYMLINK_SEARCH_DEPTH - depth - 1)) {
-				mkdirSync(dstPath, { recursive: true });
-				walkAndClone(srcPath, dstPath, symlinkDirs, depth + 1, symlinkedPaths);
-				continue;
-			}
 		}
 
 		if (!tryClonefile(srcPath, dstPath)) {
 			throw new Error(`Failed to clonefile ${srcPath}`);
 		}
 	}
+
+	return { method: "fast", deferredPaths };
 }
 
-function subtreeHasSymlinkTarget(
-	dir: string,
-	symlinkDirs: Set<string>,
-	remainingDepth: number,
-): boolean {
-	if (remainingDepth <= 0) return false;
-	try {
-		const entries = readdirSync(dir, { withFileTypes: true });
-		for (const entry of entries) {
-			if (entry.isDirectory()) {
-				if (symlinkDirs.has(entry.name)) return true;
-				if (
-					subtreeHasSymlinkTarget(join(dir, entry.name), symlinkDirs, remainingDepth - 1)
-				)
-					return true;
-			}
-		}
-	} catch {
-		// Permission error etc — treat as no targets
-	}
-	return false;
-}

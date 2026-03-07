@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { TerminalType } from "../utils/terminal.ts";
 
-export type CloneStrategy = "full" | "symlink";
+export type CloneStrategy = "full" | "fast";
 
 export interface ExpConfig {
 	root: string | null;
@@ -14,11 +14,11 @@ export interface ExpConfig {
 	verbose: boolean;
 	json: boolean;
 	cloneStrategy: CloneStrategy;
-	symlinkDirs: string[];
+	deferDirs: string[];
 }
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
-const DEFAULT_SYMLINK_DIRS = ["node_modules"];
+const DEFAULT_DEFER_DIRS = ["node_modules"];
 
 export const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "exp");
 
@@ -39,13 +39,13 @@ export function loadConfig(): ExpConfig {
 			: DEFAULT_CLEAN;
 
 	const cloneStrategyRaw = env.EXP_CLONE_STRATEGY || file.clone_strategy || "full";
-	const cloneStrategy: CloneStrategy = cloneStrategyRaw === "symlink" ? "symlink" : "full";
+	const cloneStrategy: CloneStrategy = cloneStrategyRaw === "fast" ? "fast" : "full";
 
-	const symlinkDirs = env.EXP_SYMLINK_DIRS
-		? env.EXP_SYMLINK_DIRS.split(" ").filter(Boolean)
-		: file.symlink_dirs
-			? file.symlink_dirs.split(" ").filter(Boolean)
-			: DEFAULT_SYMLINK_DIRS;
+	const deferDirs = env.EXP_DEFER_DIRS
+		? env.EXP_DEFER_DIRS.split(" ").filter(Boolean)
+		: file.defer_dirs
+			? file.defer_dirs.split(" ").filter(Boolean)
+			: DEFAULT_DEFER_DIRS;
 
 	return {
 		root: env.EXP_ROOT || file.root || null,
@@ -57,7 +57,7 @@ export function loadConfig(): ExpConfig {
 		verbose: false,
 		json: false,
 		cloneStrategy,
-		symlinkDirs,
+		deferDirs,
 	};
 }
 

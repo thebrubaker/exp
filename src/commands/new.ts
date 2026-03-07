@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { seedClaudeMd } from "../core/claude.ts";
-import { cleanPostClone, cloneProject, symlinkCloneProject } from "../core/clone.ts";
+import { cleanPostClone, cloneProject, fastCloneProject } from "../core/clone.ts";
 import type { CloneStrategy, ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
 import {
@@ -13,7 +13,7 @@ import {
 	writeMetadata,
 } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
-import { writeCdTarget } from "../utils/cd-file.ts";
+import { writeCdTarget, writeDeferredClone } from "../utils/cd-file.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import { fmt } from "../utils/format.ts";
 import { exec, execCheck } from "../utils/shell.ts";
@@ -37,7 +37,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
   exp new "desc" --branch <name>  Use exact branch name (skip auto-prefix)
   exp new "desc" --terminal       Open a new terminal window in fork
   exp new "desc" --no-terminal    Suppress terminal (overrides auto_terminal config)
-  exp new "desc" --strategy <s>   Clone strategy: full (default) or symlink
+  exp new "desc" --strategy <s>   Clone strategy: full (default) or fast
 `);
 		return;
 	}
@@ -50,7 +50,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			i++;
 		} else if (args[i] === "--strategy") {
 			const val = args[i + 1];
-			if (val === "symlink" || val === "full") {
+			if (val === "fast" || val === "full") {
 				strategyOverride = val;
 			} else {
 				warn(`Unknown strategy "${val}", using default`);
@@ -118,15 +118,15 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	const tClone = performance.now();
 	let method: string;
-	let symlinkedPaths: string[] = [];
+	let deferredPaths: string[] = [];
 
-	if (strategy === "symlink") {
+	if (strategy === "fast") {
 		spinner.update(
-			`Cloning (symlinking ${config.symlinkDirs.join(", ")})...`,
+			`Cloning (deferring ${config.deferDirs.join(", ")})...`,
 		);
-		const result = symlinkCloneProject(cloneSource, expDir, config.symlinkDirs);
+		const result = fastCloneProject(cloneSource, expDir, config.deferDirs);
 		method = result.method;
-		symlinkedPaths = result.symlinkedPaths;
+		deferredPaths = result.deferredPaths;
 	} else {
 		method = await cloneProject(cloneSource, expDir);
 	}
@@ -137,8 +137,8 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			? "clonefile(2)"
 			: method === "apfs"
 				? "APFS copy-on-write"
-				: method === "symlink"
-					? "symlink"
+				: method === "fast"
+					? "fast"
 					: "regular copy";
 
 	spinner.update("Writing metadata...");
@@ -237,6 +237,15 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	// Tell the shell wrapper to cd into the fork
 	const wrapperActive = writeCdTarget(expDir);
 
+	// Write deferred clone instructions for the shell wrapper
+	if (wrapperActive && deferredPaths.length > 0) {
+		for (const srcPath of deferredPaths) {
+			const name = srcPath.slice(cloneSource.length + 1);
+			const dstPath = `${expDir}/${name}`;
+			writeDeferredClone(srcPath, dstPath);
+		}
+	}
+
 	// ── Output ──
 
 	if (config.json) {
@@ -250,7 +259,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 				branchReused,
 				method,
 				strategy,
-				symlinkedPaths: symlinkedPaths.length > 0 ? symlinkedPaths : undefined,
+				deferredPaths: deferredPaths.length > 0 ? deferredPaths : undefined,
 				terminal: terminalType,
 				description,
 				from: fromExpName ?? null,
@@ -281,11 +290,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			);
 		}
 
-		if (symlinkedPaths.length > 0) {
+		if (deferredPaths.length > 0) {
 			warn(
-				`${config.symlinkDirs.join(", ")} symlinked from source (${symlinkedPaths.length} locations)`,
+				`${config.deferDirs.join(", ")} cloning in background (${deferredPaths.length} locations)`,
 			);
-			dim("  run 'bun install' before adding/removing packages");
 		}
 
 		const hasNextConfig =
@@ -315,11 +323,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		dim(`  path:   ${expDir}`);
 
-		if (symlinkedPaths.length > 0) {
+		if (deferredPaths.length > 0) {
 			warn(
-				`${config.symlinkDirs.join(", ")} symlinked from source (${symlinkedPaths.length} locations)`,
+				`${config.deferDirs.join(", ")} cloning in background`,
 			);
-			dim("  run 'bun install' before adding/removing packages");
 		}
 
 		if (terminalType === "none" && !wrapperActive) {
