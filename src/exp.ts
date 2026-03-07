@@ -41,7 +41,7 @@ function printHelp() {
     exp diff <id>             What changed vs original (git-native when available)
     exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
     exp nuke                  Delete ALL forks (interactive only — requires human)
-    exp clone <src> [dest]    APFS clonefile copy of any directory
+    exp cp <src> [dest]       APFS clonefile copy of any directory
     exp cd <id>               Change to fork directory (with shell-init)
     exp home                  Change to original project (with shell-init)
     exp status                Project info
@@ -166,7 +166,6 @@ async function main() {
 			case "nuke":
 				await cmdNuke(rest, config);
 				break;
-			case "clone":
 			case "cp":
 				await cmdClone(rest, config);
 				break;
