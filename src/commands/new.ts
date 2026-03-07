@@ -32,10 +32,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const filteredArgs: string[] = [];
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(`
-  exp new "description"           Clone project into a new fork
-  exp new "desc" --from <id>      Clone from existing fork instead of project root
+  exp new "description"           Clone project into a new clone
+  exp new "desc" --from <id>      Clone from existing clone instead of project root
   exp new "desc" --branch <name>  Use exact branch name (skip auto-prefix)
-  exp new "desc" --terminal       Open a new terminal window in fork
+  exp new "desc" --terminal       Open a new terminal window in clone
   exp new "desc" --no-terminal    Suppress terminal (overrides auto_terminal config)
   exp new "desc" --strategy <s>   Clone strategy: full (default) or fast
 `);
@@ -64,7 +64,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			filteredArgs.push(args[i]);
 		}
 	}
-	const description = filteredArgs.join(" ") || "fork";
+	const description = filteredArgs.join(" ") || "clone";
 
 	// Auto-detect branch name: if description looks like a branch name
 	// (single token, no spaces, contains a slash or hyphen), use it directly
@@ -72,13 +72,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		branchOverride = description;
 	}
 
-	// Auto-detect: are we inside a fork?
+	// Auto-detect: are we inside a clone?
 	const ctx = detectContext();
 
 	// Determine the real project root
 	let root: string;
 	let name: string;
-	if (ctx.isFork) {
+	if (ctx.isClone) {
 		root = ctx.originalRoot;
 		name = getProjectName(root);
 	} else {
@@ -100,13 +100,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		// Explicit --from flag
 		const resolved = resolveExp(fromId, base);
 		if (!resolved) {
-			throw new Error(`Fork not found: ${fromId}`);
+			throw new Error(`Clone not found: ${fromId}`);
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
-	} else if (ctx.isFork) {
-		// Auto-detected: we're inside a fork, fork from it
+	} else if (ctx.isClone) {
+		// Auto-detected: we're inside a clone, clone from it
 		cloneSource = ctx.expDir;
 		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
@@ -153,7 +153,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num, fromExpName);
 
-	// Add .exp to fork's .gitignore so metadata doesn't get committed
+	// Add .exp to clone's .gitignore so metadata doesn't get committed
 	spinner.update("Configuring gitignore...");
 	const gitignorePath = `${expDir}/.gitignore`;
 	if (existsSync(gitignorePath)) {
@@ -234,7 +234,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	const totalMs = performance.now() - t0;
 
-	// Tell the shell wrapper to cd into the fork
+	// Tell the shell wrapper to cd into the clone
 	const wrapperActive = writeCdTarget(expDir);
 
 	// Write deferred clone instructions for the shell wrapper
@@ -280,8 +280,8 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		ok(cloneDetail);
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
-		if (ctx.isFork && !fromId) {
-			dim(`  (auto-detected: forking from ${ctx.expName})`);
+		if (ctx.isClone && !fromId) {
+			dim(`  (auto-detected: cloning from ${ctx.expName})`);
 		}
 
 		if (branchName) {
@@ -301,7 +301,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			existsSync(`${root}/next.config.mjs`) ||
 			existsSync(`${root}/next.config.ts`);
 		if (existsSync(`${root}/package.json`) || hasNextConfig) {
-			warn("If dev server is running, the fork may need a different port");
+			warn("If dev server is running, the clone may need a different port");
 			dim("  e.g. PORT=3001 pnpm dev");
 		}
 

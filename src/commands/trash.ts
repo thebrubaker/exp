@@ -16,17 +16,17 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 	const query = positional[0];
 	const force = flags.includes("--force") || flags.includes("-y");
 
-	// ── Self-trash: no args, inside a fork ──
+	// ── Self-trash: no args, inside a clone ──
 	if (!query) {
 		const context = detectContext();
-		if (!context.isFork) {
+		if (!context.isClone) {
 			err("Usage: exp trash <id> [--force|-y]");
 			process.exit(1);
 		}
 
 		// Self-trash requires TTY — user should be explicit
 		if (!process.stdin.isTTY) {
-			err("Cannot self-trash without TTY. Use exp trash <id> --force from outside the fork.");
+			err("Cannot self-trash without TTY. Use exp trash <id> --force from outside the clone.");
 			process.exit(1);
 		}
 

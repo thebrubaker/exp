@@ -62,14 +62,14 @@ function detectCleanTargets(): string[] {
 }
 
 function printPitch() {
-	console.log(c.bold("  exp — instant project forking\n"));
+	console.log(c.bold("  exp — instant project cloning\n"));
 
 	console.log("  You know the feeling. You're deep in a feature, everything's");
 	console.log('  working, and then you think: "what if I tried a completely');
 	console.log('  different approach?"\n');
 
 	console.log("  With git, that means stash, branch, context-switch, lose your");
-	console.log("  flow. With exp, you just fork:\n");
+	console.log("  flow. With exp, you just clone:\n");
 
 	console.log(c.dim("  ┌─────────────────────────────────────────────────┐"));
 	console.log(
@@ -93,7 +93,7 @@ function printPitch() {
 	info(c.bold("For you"));
 	console.log("  You're on a branch with unstaged changes. You need to update");
 	console.log("  turbo. That's annoying — you don't want to lose your context.");
-	console.log(`  ${c.cyan('exp new "turbo upgrade"')} — cd into the fork, you're ready.`);
+	console.log(`  ${c.cyan('exp new "turbo upgrade"')} — cd into the clone, you're ready.`);
 	console.log("  Your original project? Untouched. Merge via git when done.");
 	console.log();
 
@@ -148,7 +148,7 @@ export async function cmdInit(_config: ExpConfig) {
 
 	// ── Auto-cd ──
 	const autoCd = await confirm({
-		message: `Auto-cd into forks after creating them? ${c.dim("(adds a shell wrapper to your profile)")}`,
+		message: `Auto-cd into clones after creating them? ${c.dim("(adds a shell wrapper to your profile)")}`,
 		default: existing.auto_cd !== "false",
 	});
 
@@ -214,9 +214,9 @@ export async function cmdInit(_config: ExpConfig) {
 		}
 	}
 
-	// ── Post-fork behavior ──
+	// ── Post-clone behavior ──
 	const autoTerminal = await confirm({
-		message: "Open a new terminal window after forking?",
+		message: "Open a new terminal window after cloning?",
 		default: existing.auto_terminal === "true",
 	});
 
@@ -260,7 +260,7 @@ export async function cmdInit(_config: ExpConfig) {
 		editorChoices.push({ name: "None", value: "none" });
 
 		const editorChoice = await select<string>({
-			message: "Auto-open forks in an editor?",
+			message: "Auto-open clones in an editor?",
 			default: existing.open_editor || "none",
 			choices: editorChoices,
 		});
@@ -326,17 +326,17 @@ export async function cmdInit(_config: ExpConfig) {
 	ok("You're set up!");
 	console.log();
 	info("Quick reference:");
-	console.log(`  ${c.cyan('exp new "description"')}    Fork the project`);
-	console.log(`  ${c.cyan("exp ls")}                   See your forks`);
-	console.log(`  ${c.cyan("exp cd <id>")}              Change to fork directory`);
+	console.log(`  ${c.cyan('exp new "description"')}    Clone the project`);
+	console.log(`  ${c.cyan("exp ls")}                   See your clones`);
+	console.log(`  ${c.cyan("exp cd <id>")}              Change to clone directory`);
 	console.log(`  ${c.cyan("exp diff <id>")}            What changed`);
 	console.log(`  ${c.cyan("exp trash <id>")}           Clean up when done`);
-	console.log(`  ${c.cyan("exp clone <src> [dst]")}    APFS clone any directory`);
+	console.log(`  ${c.cyan("exp cp <src> [dst]")}       APFS clone any directory`);
 	console.log();
 	if (cloneStrategy === "fast") {
 		dim("  Fast clone: node_modules copies in background after cd.");
 	}
-	dim("  Forks are isolated project copies with their own git branch.");
+	dim("  Clones are isolated project copies with their own git branch.");
 	dim("  Commit, push, merge via PR — then trash the clone.");
 	console.log();
 }

@@ -24,7 +24,7 @@ const VERSION = "0.8.0";
 
 function printHelp() {
 	console.log(`
-  exp — instant project forking via APFS clonefile
+  exp — instant project cloning via APFS clonefile
 
   WORKFLOW
     /export                       <- optional: save Claude session to file
@@ -34,15 +34,15 @@ function printHelp() {
   COMMANDS
     exp init                  Set up preferences (terminal, editor, clean targets)
     exp new "description"     Clone project (prints cd path by default)
-    exp new "desc" --from <id>  Clone from existing fork
+    exp new "desc" --from <id>  Clone from existing clone
     exp new "desc" --branch <name>  Use exact branch name
-    exp ls [--detail]         List forks (--detail for git status + divergence)
-    exp open <id>             Open terminal in fork
+    exp ls [--detail]         List clones (--detail for git status + divergence)
+    exp open <id>             Open terminal in clone
     exp diff <id>             What changed vs original (git-native when available)
-    exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
-    exp nuke                  Delete ALL forks (interactive only — requires human)
+    exp trash <id> [--force]  Delete clone (--force/-y skips confirmation)
+    exp nuke                  Delete ALL clones (interactive only — requires human)
     exp cp <src> [dest]       APFS clonefile copy of any directory
-    exp cd <id>               Change to fork directory (with shell-init)
+    exp cd <id>               Change to clone directory (with shell-init)
     exp home                  Change to original project (with shell-init)
     exp status                Project info
     exp clean-export          Remove /export files from original after cloning
@@ -56,17 +56,17 @@ function printHelp() {
     EXP_* env vars     Override config file values
 
     Keys / env vars:
-      root             EXP_ROOT           Override fork storage location
+      root             EXP_ROOT           Override clone storage location
       terminal         EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
       open_editor      EXP_OPEN_EDITOR    code | cursor | zed
       clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
       branch_prefix    EXP_BRANCH_PREFIX  Branch prefix (default: git first name or "exp")
-      auto_terminal    EXP_AUTO_TERMINAL  Auto-open terminal on fork (default: false)
+      auto_terminal    EXP_AUTO_TERMINAL  Auto-open terminal on clone (default: false)
 
   FLAGS
     --json               Machine-readable JSON output (for AI/scripts)
     --verbose            Show timing, paths, and method details
-    --terminal           Open a new terminal window in fork
+    --terminal           Open a new terminal window in clone
     --no-terminal        Suppress terminal (overrides auto_terminal)
 
   SHELL INTEGRATION
@@ -94,17 +94,17 @@ function printContextHint(config: ExpConfig) {
 		return;
 	}
 
-	// Show fork count for current project if we're in one
+	// Show clone count for current project if we're in one
 	try {
 		const root = getProjectRoot();
 		const base = getExpBase(root, config);
 		if (existsSync(base)) {
-			const forks = readdirSync(base).filter((f) => /^\d{3}-/.test(f));
-			if (forks.length > 0) {
-				const s = forks.length === 1 ? "" : "s";
-				info(`${forks.length} active fork${s} — run: ${c.cyan("exp ls")}`);
+			const clones = readdirSync(base).filter((f) => /^\d{3}-/.test(f));
+			if (clones.length > 0) {
+				const s = clones.length === 1 ? "" : "s";
+				info(`${clones.length} active clone${s} — run: ${c.cyan("exp ls")}`);
 			} else {
-				dim(`  No forks yet — run: ${c.cyan('exp new "description"')}`);
+				dim(`  No clones yet — run: ${c.cyan('exp new "description"')}`);
 			}
 			console.log();
 		}

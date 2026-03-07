@@ -9,7 +9,7 @@ import { c, dim } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
 import { timeAgo } from "../utils/time.ts";
 
-type ForkStatus = "clean" | "modified" | "unpushed";
+type CloneStatus = "clean" | "modified" | "unpushed";
 
 interface ExpEntry {
 	dirName: string;
@@ -18,10 +18,10 @@ interface ExpEntry {
 	description: string;
 	created: string;
 	status: string;
-	forkStatus: ForkStatus;
+	cloneStatus: CloneStatus;
 }
 
-interface ExpDetailEntry extends Omit<ExpEntry, "forkStatus"> {
+interface ExpDetailEntry extends Omit<ExpEntry, "cloneStatus"> {
 	gitStatus: string;
 	fileDivergence: string;
 	divergedSize: string;
@@ -49,16 +49,16 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		return;
 	}
 
-	// When inside a fork, list from the original project root so the user
-	// sees the full sibling list rather than forks-of-this-fork only.
+	// When inside a clone, list from the original project root so the user
+	// sees the full sibling list rather than clones-of-this-clone only.
 	const ctx = detectContext();
-	const root = ctx.isFork ? ctx.originalRoot : getProjectRoot();
-	const currentForkDir = ctx.isFork ? ctx.expDir : null;
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
+	const currentCloneDir = ctx.isClone ? ctx.expDir : null;
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim(`No forks for ${name}. Run: exp new "my idea"`);
+		dim(`No clones for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
@@ -67,14 +67,14 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		.sort((a, b) => a.name.localeCompare(b.name));
 
 	if (entries.length === 0) {
-		dim(`No forks for ${name}. Run: exp new "my idea"`);
+		dim(`No clones for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
 	if (detail) {
 		await printDetail(entries, base, root, name);
 	} else {
-		await printCompact(entries, base, root, name, currentForkDir);
+		await printCompact(entries, base, root, name, currentCloneDir);
 	}
 }
 
@@ -84,7 +84,7 @@ export function truncate(str: string, maxLen: number): string {
 	return `${str.slice(0, maxLen - 1)}\u2026`;
 }
 
-/** Extract the slug portion from a fork dir name (e.g., "001-try-redis" -> "try-redis") */
+/** Extract the slug portion from a clone dir name (e.g., "001-try-redis" -> "try-redis") */
 export function extractSlug(dirName: string): string {
 	return dirName.replace(/^\d+-/, "");
 }
@@ -96,8 +96,8 @@ export function descriptionMatchesSlug(description: string, dirName: string): bo
 	return slugify(description) === slug;
 }
 
-/** Detect fork status: clean, modified, or unpushed */
-async function detectForkStatus(expDir: string): Promise<ForkStatus> {
+/** Detect clone status: clean, modified, or unpushed */
+async function detectCloneStatus(expDir: string): Promise<CloneStatus> {
 	if (!existsSync(`${expDir}/.git`)) return "modified";
 
 	// Check for uncommitted changes
@@ -117,7 +117,7 @@ async function detectForkStatus(expDir: string): Promise<ForkStatus> {
 }
 
 /** Render a colored status dot */
-function statusDot(status: ForkStatus): string {
+function statusDot(status: CloneStatus): string {
 	switch (status) {
 		case "clean":
 			return c.green("\u25cf");
@@ -143,16 +143,16 @@ async function printCompact(
 	base: string,
 	_sourceRoot: string,
 	projectName: string,
-	currentForkDir: string | null = null,
+	currentCloneDir: string | null = null,
 ) {
-	// Gather fork statuses in parallel (fast: just git status + git log per fork)
+	// Gather clone statuses in parallel (fast: just git status + git log per clone)
 	const statusPromises = entries.map(async (entry) => {
 		const expDir = `${base}/${entry.name}`;
-		const forkStatus = await detectForkStatus(expDir);
-		return { name: entry.name, forkStatus };
+		const cloneStatus = await detectCloneStatus(expDir);
+		return { name: entry.name, cloneStatus };
 	});
 	const statuses = await Promise.all(statusPromises);
-	const statusMap = new Map(statuses.map((s) => [s.name, s.forkStatus]));
+	const statusMap = new Map(statuses.map((s) => [s.name, s.cloneStatus]));
 
 	// Build row data (include source for parent-child grouping)
 	const rows: ExpEntry[] = entries.map((entry) => {
@@ -165,16 +165,16 @@ async function printCompact(
 			description: meta?.description ?? "",
 			created: meta?.created ?? "",
 			status: meta?.status ?? "active",
-			forkStatus: statusMap.get(entry.name) ?? "modified",
+			cloneStatus: statusMap.get(entry.name) ?? "modified",
 		};
 	});
 
-	// Group: top-level forks vs children (source points to another fork dir)
-	const forkDirSet = new Set(rows.map((r) => r.expDir));
-	const topLevel = rows.filter((r) => !forkDirSet.has(r.source));
+	// Group: top-level clones vs children (source points to another clone dir)
+	const cloneDirSet = new Set(rows.map((r) => r.expDir));
+	const topLevel = rows.filter((r) => !cloneDirSet.has(r.source));
 	const childrenByParent = new Map<string, ExpEntry[]>();
 	for (const row of rows) {
-		if (forkDirSet.has(row.source)) {
+		if (cloneDirSet.has(row.source)) {
 			const arr = childrenByParent.get(row.source) ?? [];
 			arr.push(row);
 			childrenByParent.set(row.source, arr);
@@ -194,12 +194,12 @@ async function printCompact(
 		: 0;
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
-	// Header: note if we're viewing from inside a fork
-	const currentForkEntry = currentForkDir ? rows.find((r) => r.expDir === currentForkDir) : null;
-	const headerSuffix = currentForkEntry ? c.dim(` (inside ${currentForkEntry.dirName})`) : "";
+	// Header: note if we're viewing from inside a clone
+	const currentCloneEntry = currentCloneDir ? rows.find((r) => r.expDir === currentCloneDir) : null;
+	const headerSuffix = currentCloneEntry ? c.dim(` (inside ${currentCloneEntry.dirName})`) : "";
 
 	console.log();
-	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}${headerSuffix}`);
+	console.log(`${c.bold(`Clones for ${c.cyan(projectName)}`)}${headerSuffix}`);
 	console.log();
 
 	// Row format: [prefix][dot] [name]  [desc]  [time]
@@ -209,9 +209,9 @@ async function printCompact(
 	const CHILD_EXTRA = 4; // child prefix is 4 chars wider than top-level
 
 	function printRow(row: ExpEntry, isChild: boolean) {
-		const isCurrent = currentForkDir !== null && row.expDir === currentForkDir;
+		const isCurrent = currentCloneDir !== null && row.expDir === currentCloneDir;
 		const arrow = isCurrent ? c.cyan("→") : " ";
-		const dot = statusDot(row.forkStatus);
+		const dot = statusDot(row.cloneStatus);
 
 		// prefix: top-level = "X " (2 chars), child = "X   └ " (6 chars)
 		const prefix = isChild ? `${arrow}   ${c.dim("└")} ` : `${arrow} `;
@@ -277,7 +277,7 @@ async function printDetail(
 	const details = await Promise.all(detailPromises);
 
 	console.log();
-	console.log(`${c.bold(`Forks for ${c.cyan(projectName)}`)}`);
+	console.log(`${c.bold(`Clones for ${c.cyan(projectName)}`)}`);
 	console.log();
 
 	for (const d of details) {
@@ -319,16 +319,16 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const forks = readdirSync(base, { withFileTypes: true })
+			const clones = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name));
 
-			if (forks.length === 0) continue;
+			if (clones.length === 0) continue;
 
 			found = true;
 
 			// Build row data for this project
-			const rows = forks.map((f) => {
+			const rows = clones.map((f) => {
 				const expDir = join(base, f.name);
 				const meta = readMetadata(expDir);
 				return {
@@ -350,7 +350,7 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 			const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
 			console.log();
-			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${forks.length} forks)`)}`);
+			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${clones.length} clones)`)}`);
 
 			for (const row of rows) {
 				const nameCol = c.bold(truncate(row.dirName, NAME_CAP).padEnd(maxName));
@@ -367,7 +367,7 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 	}
 
 	if (!found) {
-		dim("No forks found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
+		dim("No clones found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
 	}
 
 	console.log();
@@ -379,7 +379,7 @@ async function printJson(config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		console.log(JSON.stringify({ project: name, forks: [] }));
+		console.log(JSON.stringify({ project: name, clones: [] }));
 		return;
 	}
 
@@ -387,7 +387,7 @@ async function printJson(config: ExpConfig) {
 		.filter((e) => e.isDirectory())
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	const forks = entries.map((entry) => {
+	const clones = entries.map((entry) => {
 		const expDir = `${base}/${entry.name}`;
 		const meta = readMetadata(expDir);
 		return {
@@ -400,7 +400,7 @@ async function printJson(config: ExpConfig) {
 		};
 	});
 
-	console.log(JSON.stringify({ project: name, root, forks }));
+	console.log(JSON.stringify({ project: name, root, clones }));
 }
 
 async function printJsonGlobal(config: ExpConfig) {
@@ -418,7 +418,7 @@ async function printJsonGlobal(config: ExpConfig) {
 	const projects: Array<{
 		project: string;
 		root: string;
-		forks: Array<Record<string, unknown>>;
+		clones: Array<Record<string, unknown>>;
 	}> = [];
 
 	for (const scanPath of scanPaths) {
@@ -431,7 +431,7 @@ async function printJsonGlobal(config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const forks = readdirSync(base, { withFileTypes: true })
+			const clones = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name))
 				.map((e) => {
@@ -447,11 +447,11 @@ async function printJsonGlobal(config: ExpConfig) {
 					};
 				});
 
-			if (forks.length > 0) {
+			if (clones.length > 0) {
 				projects.push({
 					project: projectName,
 					root: join(scanPath, projectName),
-					forks,
+					clones,
 				});
 			}
 		}

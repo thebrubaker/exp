@@ -15,7 +15,7 @@ import {
 export async function cmdCd(query: string | undefined, config: ExpConfig) {
 	if (!query) {
 		err("Usage: exp cd <id>");
-		dim("  Run exp ls to see available forks.");
+		dim("  Run exp ls to see available clones.");
 		process.exit(1);
 	}
 

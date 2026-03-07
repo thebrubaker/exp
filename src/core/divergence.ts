@@ -30,7 +30,7 @@ export async function getDivergedSize(sourceRoot: string, expDir: string): Promi
 		// "Only in /exp/: newfile.ts"
 		// "Only in /exp/subdir: file.ts"
 
-		// For "differ" lines, get the fork file size
+		// For "differ" lines, get the clone file size
 		const differMatch = line.match(/^Files .+ and (.+) differ$/);
 		if (differMatch) {
 			const filePath = differMatch[1];
@@ -49,7 +49,7 @@ export async function getDivergedSize(sourceRoot: string, expDir: string): Promi
 		if (onlyInMatch) {
 			const dir = onlyInMatch[1];
 			const fileName = onlyInMatch[2];
-			// Only count files in the fork, not files only in source
+			// Only count files in the clone, not files only in source
 			if (dir.startsWith(expDir) || dir === expDir) {
 				const filePath = `${dir}/${fileName}`;
 				try {

@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExpMetadata } from "./experiment.ts";
 
-export interface ForkContext {
-	isFork: true;
+export interface CloneContext {
+	isClone: true;
 	expDir: string;
 	expName: string;
 	originalRoot: string;
@@ -12,14 +12,14 @@ export interface ForkContext {
 }
 
 export interface ProjectContext {
-	isFork: false;
+	isClone: false;
 }
 
-export type Context = ForkContext | ProjectContext;
+export type Context = CloneContext | ProjectContext;
 
 /**
  * Walk up from cwd (or `from`) looking for a `.exp` metadata file.
- * If found, return fork context. Otherwise, return project context.
+ * If found, return clone context. Otherwise, return project context.
  */
 export function detectContext(from?: string): Context {
 	let dir = from ?? process.cwd();
@@ -31,7 +31,7 @@ export function detectContext(from?: string): Context {
 				const raw = readFileSync(metaPath, "utf-8");
 				const meta: ExpMetadata = JSON.parse(raw);
 				return {
-					isFork: true,
+					isClone: true,
 					expDir: dir,
 					expName: meta.name,
 					originalRoot: meta.source,
@@ -39,8 +39,8 @@ export function detectContext(from?: string): Context {
 					number: meta.number,
 				};
 			} catch {
-				// Malformed .exp file — treat as not a fork
-				return { isFork: false };
+				// Malformed .exp file — treat as not a clone
+				return { isClone: false };
 			}
 		}
 
@@ -49,5 +49,5 @@ export function detectContext(from?: string): Context {
 		dir = parent;
 	}
 
-	return { isFork: false };
+	return { isClone: false };
 }
