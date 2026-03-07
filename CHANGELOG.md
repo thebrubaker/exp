@@ -7,6 +7,7 @@
 - Extended cd file protocol with `cd:` and `defer:` lines (backwards compatible with bare paths)
 - New config keys: `clone_strategy` (`full`|`fast`), `defer_dirs` (default: `node_modules`)
 - New flag: `exp new --strategy fast|full` for one-off override
+- Add `exp clone <source> [destination]` — raw clonefile(2) utility for copying any directory (alias: `exp cp`)
 - Benchmarking scripts for measuring clone performance (`scripts/bench-clone.ts`, `scripts/fixture-setup.ts`)
 - Symlink strategy tried and abandoned — Turbopack rejects symlinks pointing outside project root
 

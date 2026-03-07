@@ -3,6 +3,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { cmdCd } from "./commands/cd.ts";
 import { cmdCleanExport } from "./commands/clean-export.ts";
+import { cmdClone } from "./commands/clone.ts";
 import { cmdDiff } from "./commands/diff.ts";
 import { cmdHome } from "./commands/home.ts";
 import { cmdInit } from "./commands/init.ts";
@@ -40,6 +41,7 @@ function printHelp() {
     exp diff <id>             What changed vs original (git-native when available)
     exp trash <id> [--force]  Delete fork (--force/-y skips confirmation)
     exp nuke                  Delete ALL forks (interactive only — requires human)
+    exp clone <src> [dest]    APFS clonefile copy of any directory
     exp cd <id>               Change to fork directory (with shell-init)
     exp home                  Change to original project (with shell-init)
     exp status                Project info
@@ -163,6 +165,10 @@ async function main() {
 				break;
 			case "nuke":
 				await cmdNuke(rest, config);
+				break;
+			case "clone":
+			case "cp":
+				await cmdClone(rest, config);
 				break;
 			case "clean-export":
 			case "ce":
