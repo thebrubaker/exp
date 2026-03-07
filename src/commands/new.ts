@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { seedClaudeMd } from "../core/claude.ts";
-import { cleanPostClone, cloneProject } from "../core/clone.ts";
-import type { ExpConfig } from "../core/config.ts";
+import { cleanPostClone, cloneProject, symlinkCloneProject } from "../core/clone.ts";
+import type { CloneStrategy, ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
 import {
 	ensureExpBase,
@@ -24,10 +24,11 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const t0 = performance.now();
 	const verbose = config.verbose;
 
-	// Parse flags: --from, --terminal, --no-terminal, --branch
+	// Parse flags: --from, --terminal, --no-terminal, --branch, --strategy
 	let fromId: string | null = null;
 	let terminalOverride: boolean | null = null; // null = auto-detect
 	let branchOverride: string | null = null;
+	let strategyOverride: CloneStrategy | undefined = undefined; // undefined = use config
 	const filteredArgs: string[] = [];
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(`
@@ -36,6 +37,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
   exp new "desc" --branch <name>  Use exact branch name (skip auto-prefix)
   exp new "desc" --terminal       Open a new terminal window in fork
   exp new "desc" --no-terminal    Suppress terminal (overrides auto_terminal config)
+  exp new "desc" --strategy <s>   Clone strategy: full (default) or symlink
 `);
 		return;
 	}
@@ -45,6 +47,14 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			i++; // skip next arg
 		} else if (args[i] === "--branch" || args[i] === "-b") {
 			branchOverride = args[i + 1] ?? null;
+			i++;
+		} else if (args[i] === "--strategy") {
+			const val = args[i + 1];
+			if (val === "symlink" || val === "full") {
+				strategyOverride = val;
+			} else {
+				warn(`Unknown strategy "${val}", using default`);
+			}
 			i++;
 		} else if (args[i] === "--terminal") {
 			terminalOverride = true;
@@ -102,10 +112,24 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		cloneSourceLabel = fromExpName;
 	}
 
+	const strategy: CloneStrategy = strategyOverride ?? config.cloneStrategy;
+
 	const spinner = startSpinner(`Cloning ${c.cyan(cloneSourceLabel)} → ${c.magenta(expName)}`);
 
 	const tClone = performance.now();
-	const method = await cloneProject(cloneSource, expDir);
+	let method: string;
+	let symlinkedPaths: string[] = [];
+
+	if (strategy === "symlink") {
+		spinner.update(
+			`Cloning (symlinking ${config.symlinkDirs.join(", ")})...`,
+		);
+		const result = symlinkCloneProject(cloneSource, expDir, config.symlinkDirs);
+		method = result.method;
+		symlinkedPaths = result.symlinkedPaths;
+	} else {
+		method = await cloneProject(cloneSource, expDir);
+	}
 	const cloneMs = performance.now() - tClone;
 
 	const methodLabel =
@@ -113,7 +137,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			? "clonefile(2)"
 			: method === "apfs"
 				? "APFS copy-on-write"
-				: "regular copy";
+				: method === "symlink"
+					? "symlink"
+					: "regular copy";
 
 	spinner.update("Writing metadata...");
 	writeMetadata(expDir, {
@@ -169,7 +195,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	}
 
 	let cleanMs = 0;
-	if (config.clean.length > 0) {
+	if (strategy === "full" && config.clean.length > 0) {
 		spinner.update(`Cleaning ${config.clean.join(", ")}...`);
 		const tClean = performance.now();
 		cleanPostClone(expDir, config.clean);
@@ -223,6 +249,8 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 				branch: branchName,
 				branchReused,
 				method,
+				strategy,
+				symlinkedPaths: symlinkedPaths.length > 0 ? symlinkedPaths : undefined,
 				terminal: terminalType,
 				description,
 				from: fromExpName ?? null,
@@ -237,7 +265,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		info(`Cloning ${c.cyan(cloneSourceLabel)} → ${c.magenta(expName)}`);
 
 		let cloneDetail = `Cloned via ${methodLabel} in ${c.cyan(fmt(cloneMs))}`;
-		if (config.clean.length > 0) {
+		if (strategy === "full" && config.clean.length > 0) {
 			cloneDetail += ` (cleaned ${config.clean.join(", ")} in ${fmt(cleanMs)})`;
 		}
 		ok(cloneDetail);
@@ -248,7 +276,16 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 
 		if (branchName) {
-			ok(`Branch: ${c.cyan(branchName)}${branchReused ? c.dim(" (already existed, switched to it)") : ""}`);
+			ok(
+				`Branch: ${c.cyan(branchName)}${branchReused ? c.dim(" (already existed, switched to it)") : ""}`,
+			);
+		}
+
+		if (symlinkedPaths.length > 0) {
+			warn(
+				`${config.symlinkDirs.join(", ")} symlinked from source (${symlinkedPaths.length} locations)`,
+			);
+			dim("  run 'bun install' before adding/removing packages");
 		}
 
 		const hasNextConfig =
@@ -274,6 +311,15 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		if (branchName) {
 			dim(`  branch: ${branchName}${branchReused ? " (already existed)" : ""}`);
+		}
+
+		dim(`  path:   ${expDir}`);
+
+		if (symlinkedPaths.length > 0) {
+			warn(
+				`${config.symlinkDirs.join(", ")} symlinked from source (${symlinkedPaths.length} locations)`,
+			);
+			dim("  run 'bun install' before adding/removing packages");
 		}
 
 		if (terminalType === "none" && !wrapperActive) {

@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { TerminalType } from "../utils/terminal.ts";
 
+export type CloneStrategy = "full" | "symlink";
+
 export interface ExpConfig {
 	root: string | null;
 	terminal: TerminalType | "auto";
@@ -11,9 +13,12 @@ export interface ExpConfig {
 	autoTerminal: boolean;
 	verbose: boolean;
 	json: boolean;
+	cloneStrategy: CloneStrategy;
+	symlinkDirs: string[];
 }
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
+const DEFAULT_SYMLINK_DIRS = ["node_modules"];
 
 export const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "exp");
 
@@ -33,6 +38,15 @@ export function loadConfig(): ExpConfig {
 			? file.clean.split(" ").filter(Boolean)
 			: DEFAULT_CLEAN;
 
+	const cloneStrategyRaw = env.EXP_CLONE_STRATEGY || file.clone_strategy || "full";
+	const cloneStrategy: CloneStrategy = cloneStrategyRaw === "symlink" ? "symlink" : "full";
+
+	const symlinkDirs = env.EXP_SYMLINK_DIRS
+		? env.EXP_SYMLINK_DIRS.split(" ").filter(Boolean)
+		: file.symlink_dirs
+			? file.symlink_dirs.split(" ").filter(Boolean)
+			: DEFAULT_SYMLINK_DIRS;
+
 	return {
 		root: env.EXP_ROOT || file.root || null,
 		terminal: (env.EXP_TERMINAL || file.terminal || "auto") as TerminalType | "auto",
@@ -42,6 +56,8 @@ export function loadConfig(): ExpConfig {
 		autoTerminal: (env.EXP_AUTO_TERMINAL || file.auto_terminal || "false") === "true",
 		verbose: false,
 		json: false,
+		cloneStrategy,
+		symlinkDirs,
 	};
 }
 
