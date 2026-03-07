@@ -73,7 +73,7 @@ commands/
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
 - **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
-- **Clone strategy:** `clone_strategy=symlink` in config or `--strategy symlink` flag. Walks the tree, clonefiles everything except `symlink_dirs` (default: `node_modules`), which get symlinked back to source. ~13x faster for large projects. Hardcoded: `NO_DESCEND` set (`.git`, `.next`, `.turbo`) cloned atomically, search depth of 3 for nested symlink targets.
+- **Clone strategy:** `clone_strategy=fast` in config or `--strategy fast` flag. Root-scans the source, clonefiles everything except `defer_dirs` (default: `node_modules`), returns in ~577ms. The shell wrapper then spawns `cp -cR` in the background for deferred dirs — user gets their prompt immediately, `node_modules` appears seconds later. Symlink strategy was tried first but Turbopack rejects symlinks pointing outside the project root.
 
 ## Benchmarking & Sanity Checks
 

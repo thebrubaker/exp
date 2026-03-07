@@ -2,10 +2,13 @@
 
 ## v0.7.0 — 2026-03-07
 
-- Symlink clone strategy: `clone_strategy=symlink` skips `node_modules` and symlinks from source (~13x faster for large projects)
-- New config keys: `clone_strategy` (`full`|`symlink`), `symlink_dirs` (default: `node_modules`)
-- New flag: `exp new --strategy symlink|full` for one-off override
+- Fast clone strategy: `clone_strategy=fast` defers `node_modules` cloning to background (~577ms to prompt vs ~16s full clone)
+- Shell wrapper spawns `cp -cR` in background for deferred dirs — user gets prompt immediately
+- Extended cd file protocol with `cd:` and `defer:` lines (backwards compatible with bare paths)
+- New config keys: `clone_strategy` (`full`|`fast`), `defer_dirs` (default: `node_modules`)
+- New flag: `exp new --strategy fast|full` for one-off override
 - Benchmarking scripts for measuring clone performance (`scripts/bench-clone.ts`, `scripts/fixture-setup.ts`)
+- Symlink strategy tried and abandoned — Turbopack rejects symlinks pointing outside project root
 
 ## v0.6.0 — 2026-02-25
 
