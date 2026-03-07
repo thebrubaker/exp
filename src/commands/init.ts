@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { confirm, input, select } from "@inquirer/prompts";
-import type { ExpConfig } from "../core/config.ts";
+import type { CloneStrategy, ExpConfig } from "../core/config.ts";
 import { CONFIG_PATH, readRawConfig, writeConfig } from "../core/config.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
 import {
@@ -148,9 +148,71 @@ export async function cmdInit(_config: ExpConfig) {
 
 	// ── Auto-cd ──
 	const autoCd = await confirm({
-		message: "Auto-cd into forks after creating them?",
+		message: `Auto-cd into forks after creating them? ${c.dim("(adds a shell wrapper to your profile)")}`,
 		default: existing.auto_cd !== "false",
 	});
+
+	// ── Clone strategy ──
+	const cloneStrategy = await select<CloneStrategy>({
+		message: "Clone strategy?",
+		default: (existing.clone_strategy as CloneStrategy) || "full",
+		choices: [
+			{
+				name: `Full clone ${c.dim("— copies everything via clonefile(2)")}`,
+				value: "full" as const,
+			},
+			{
+				name: `Fast clone ${c.dim("— defers node_modules, copies in background")}`,
+				value: "fast" as const,
+			},
+		],
+	});
+
+	// ── Clean targets (full strategy only) ──
+	let cleanTargets: string[] = [];
+	if (cloneStrategy === "full") {
+		const suggestedClean = detectCleanTargets();
+		const existingClean = existing.clean?.split(" ").filter(Boolean);
+		cleanTargets = existingClean ?? suggestedClean;
+
+		if (suggestedClean.length > 0 || existingClean) {
+			const defaults = existingClean ?? suggestedClean;
+			const useDefaults = await confirm({
+				message: `After cloning, auto-remove build caches? ${c.dim(`(${defaults.join(" ")})`)}`,
+				default: true,
+			});
+
+			if (!useDefaults) {
+				const customClean = await input({
+					message: "Directories to clean (space-separated, or empty for none):",
+				});
+				cleanTargets = customClean
+					.split(" ")
+					.map((s) => s.trim())
+					.filter(Boolean);
+			} else {
+				cleanTargets = defaults;
+			}
+		} else {
+			const wantClean = await confirm({
+				message: `After cloning, auto-remove build caches? ${c.dim("(e.g. .next .turbo)")}`,
+				default: false,
+			});
+
+			if (wantClean) {
+				const customClean = await input({
+					message: "Directories to clean (space-separated):",
+					default: ".next .turbo",
+				});
+				cleanTargets = customClean
+					.split(" ")
+					.map((s) => s.trim())
+					.filter(Boolean);
+			} else {
+				cleanTargets = [];
+			}
+		}
+	}
 
 	// ── Post-fork behavior ──
 	const autoTerminal = await confirm({
@@ -208,49 +270,6 @@ export async function cmdInit(_config: ExpConfig) {
 		dim("  No editors detected (checked: cursor, code, zed)");
 	}
 
-	// ── Clean targets ──
-	const suggestedClean = detectCleanTargets();
-	const existingClean = existing.clean?.split(" ").filter(Boolean);
-	let cleanTargets: string[] = existingClean ?? suggestedClean;
-
-	if (suggestedClean.length > 0 || existingClean) {
-		const defaults = existingClean ?? suggestedClean;
-		const useDefaults = await confirm({
-			message: `After cloning, auto-remove build caches? ${c.dim(`(${defaults.join(" ")})`)}`,
-			default: true,
-		});
-
-		if (!useDefaults) {
-			const customClean = await input({
-				message: "Directories to clean (space-separated, or empty for none):",
-			});
-			cleanTargets = customClean
-				.split(" ")
-				.map((s) => s.trim())
-				.filter(Boolean);
-		} else {
-			cleanTargets = defaults;
-		}
-	} else {
-		const wantClean = await confirm({
-			message: `After cloning, auto-remove build caches? ${c.dim("(e.g. .next .turbo)")}`,
-			default: false,
-		});
-
-		if (wantClean) {
-			const customClean = await input({
-				message: "Directories to clean (space-separated):",
-				default: ".next .turbo",
-			});
-			cleanTargets = customClean
-				.split(" ")
-				.map((s) => s.trim())
-				.filter(Boolean);
-		} else {
-			cleanTargets = [];
-		}
-	}
-
 	// ── Branch prefix ──
 	let detectedPrefix = "exp";
 	const gitNameResult = await exec(["git", "config", "user.name"]);
@@ -268,6 +287,7 @@ export async function cmdInit(_config: ExpConfig) {
 	const values: Record<string, string> = {};
 
 	values.auto_cd = String(autoCd);
+	values.clone_strategy = cloneStrategy;
 	values.terminal = terminal;
 	values.auto_terminal = String(autoTerminal);
 
@@ -283,11 +303,17 @@ export async function cmdInit(_config: ExpConfig) {
 
 	writeConfig(values);
 
-	// ── Shell integration (driven by auto-cd preference) ──
-	if (autoCd) {
+	// ── Shell integration (needed for auto-cd and fast clone) ──
+	if (autoCd || cloneStrategy === "fast") {
+		if (cloneStrategy === "fast" && !autoCd) {
+			info("Fast clone needs the shell wrapper for background copying");
+		}
 		const shell = detectShell();
 		if (isShellIntegrationInstalled(shell)) {
 			ok(`Shell integration already installed ${c.dim(`(${getRcFile(shell)})`)}`);
+			if (cloneStrategy === "fast") {
+				dim("  Restart your shell to pick up the latest wrapper.");
+			}
 		} else {
 			const { rcFile } = installShellIntegration(shell);
 			ok(`Shell integration added to ${rcFile}`);
@@ -305,7 +331,11 @@ export async function cmdInit(_config: ExpConfig) {
 	console.log(`  ${c.cyan("exp cd <id>")}              Change to fork directory`);
 	console.log(`  ${c.cyan("exp diff <id>")}            What changed`);
 	console.log(`  ${c.cyan("exp trash <id>")}           Clean up when done`);
+	console.log(`  ${c.cyan("exp clone <src> [dst]")}    APFS clone any directory`);
 	console.log();
+	if (cloneStrategy === "fast") {
+		dim("  Fast clone: node_modules copies in background after cd.");
+	}
 	dim("  Forks are isolated project copies with their own git branch.");
 	dim("  Commit, push, merge via PR — then trash the clone.");
 	console.log();
