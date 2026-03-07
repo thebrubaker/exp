@@ -1,6 +1,6 @@
 # CLAUDE.md — exp
 
-Version: v0.6.0
+Version: v0.7.0
 
 ## Overview
 
@@ -73,6 +73,60 @@ commands/
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
 - **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
+- **Clone strategy:** `clone_strategy=symlink` in config or `--strategy symlink` flag. Walks the tree, clonefiles everything except `symlink_dirs` (default: `node_modules`), which get symlinked back to source. ~13x faster for large projects. Hardcoded: `NO_DESCEND` set (`.git`, `.next`, `.turbo`) cloned atomically, search depth of 3 for nested symlink targets.
+
+## Benchmarking & Sanity Checks
+
+Scripts for measuring clone performance and validating assumptions. Run these when changing clone strategy or investigating slowness.
+
+```bash
+# First-time fixture setup (creates tests/fixtures/turbo-mono, installs deps, runs build)
+bun scripts/fixture-setup.ts
+bun scripts/fixture-setup.ts --reset   # recreate from scratch
+
+# Benchmark clone strategies against the turbo fixture
+bun scripts/bench-clone.ts
+
+# Benchmark against any real project
+bun scripts/bench-clone.ts --fixture /path/to/your/large-project
+```
+
+**What the fixture is:** A `create-turbo` pnpm monorepo with `pnpm install` + `turbo build` run — gives you realistic `node_modules`, `.turbo` cache, and `.next` output to benchmark against. Lives at `tests/fixtures/turbo-mono` (gitignored).
+
+**Two tiers:** The turbo fixture is lightweight (~20k inodes) — good for quick logic checks. For real-world scale benchmarks, run against a large project (e.g., one with 400k+ inodes in node_modules). The fixture intentionally stays small so setup is fast. If you want to test at scale locally, add heavy packages to `apps/web/package.json` (prisma, shadcn/ui, stripe, trpc) and `--reset` the fixture.
+
+**Benchmark output:** Measures wall-clock time and actual disk cost (`df` before/after) for three strategies:
+1. `clonefile(2)` whole tree — current behavior
+2. walk-clone excluding `node_modules`
+3. walk-clone excluding `node_modules` + `.turbo` + `.next`
+
+**Known findings (large monorepo, 451k node_modules inodes, bun):**
+
+| Strategy | Clone | Install | Total | Disk |
+|---|---|---|---|---|
+| `clonefile(2)` whole tree (current) | 15.8s | — | 15.8s | 163 MB |
+| smart-clone, exclude all `node_modules` recursively + install | 1.7s | 9.5s | 11.2s | 59 MB |
+| **root-scan, exclude `node_modules` + install** | **490ms** | **6.3s** | **6.8s** | **71 MB** |
+| root-scan, exclude `node_modules` + `.turbo` + install | 490ms | 6.0s | 6.5s | 67 MB |
+
+**Recommended: root-scan + install. 2.4x faster end-to-end.**
+
+Root-scan: list root entries, skip excluded, `clonefile(2)` each remaining entry as an atomic subtree. O(root entries) syscalls (~15 for a typical monorepo). Nested workspace `node_modules` (apps/web, packages/ui, etc.) are included via atomic clonefile of their parent — for bun/pnpm this is safe (~3,200 inodes, negligible).
+
+**Why smart-clone (recursive exclusion) loses:** The `subtreeHasExcluded` check is itself a full tree walk — you pay traversal cost twice. And removing all nested `node_modules` makes install take longer (bun has to create them too). Root-scan leaves workspace node_modules in place so bun only installs root.
+
+**Nested node_modules by package manager:**
+- **bun**: aggressive hoisting, nested dirs are tiny (~3,200 inodes across a dozen workspace packages) — root-scan safe
+- **pnpm**: workspace node_modules are symlinks to `.pnpm/` — tiny, root-scan safe
+- **npm/yarn**: version conflicts can create real nested node_modules — potential risk, but uncommon for well-maintained projects
+
+**Key learnings:**
+- `clonefile(2)` is O(N inodes) — not truly instant at scale (451k inodes → 16s, ~0.04ms/inode)
+- "Apparent size" from `du -sh` is misleading for CoW clones — use `df` delta for actual disk cost
+- Even clonefile has real disk cost at scale: 163MB for 451k inodes (B-tree entries + block refs)
+- Smart-clone (correct recursive exclusion) is SLOWER than root-scan for bun/pnpm — double traversal cost + install has to create nested dirs too
+- `.turbo` has only 155 inodes but 1.5G of large cache files — CoW setup for big files still costs ~500ms
+- The spinner freezes during clonefile (synchronous FFI) — runs on main thread, blocks event loop
 
 ## Reference
 

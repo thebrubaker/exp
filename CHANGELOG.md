@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0 — 2026-03-07
+
+- Symlink clone strategy: `clone_strategy=symlink` skips `node_modules` and symlinks from source (~13x faster for large projects)
+- New config keys: `clone_strategy` (`full`|`symlink`), `symlink_dirs` (default: `node_modules`)
+- New flag: `exp new --strategy symlink|full` for one-off override
+- Benchmarking scripts for measuring clone performance (`scripts/bench-clone.ts`, `scripts/fixture-setup.ts`)
+
 ## v0.6.0 — 2026-02-25
 
 - `exp ls` is fast now — dropped diverged size calculation from compact mode (was ~2s, now instant)
