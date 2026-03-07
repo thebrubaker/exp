@@ -20,7 +20,7 @@ import { getExpBase } from "./core/experiment.ts";
 import { getProjectRoot } from "./core/project.ts";
 import { c, dim, err, info } from "./utils/colors.ts";
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 function printHelp() {
 	console.log(`

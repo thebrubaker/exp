@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.0 — 2026-03-07
+
+- `exp init` now includes clone strategy selection (full/fast)
+- Clean targets question only shown for full clone strategy
+- Shell integration auto-installs for fast clone (wrapper needed for background copying)
+- `exp clone` added to init quick reference
+- Auto-cd question clarifies it adds a shell wrapper to your profile
+
 ## v0.7.0 — 2026-03-07
 
 - Fast clone strategy: `clone_strategy=fast` defers `node_modules` cloning to background (~577ms to prompt vs ~16s full clone)

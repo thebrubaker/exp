@@ -1,6 +1,6 @@
 {
 	"name": "exp",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"description": "Instant project forking via macOS APFS clonefile",
 	"type": "module",
 	"bin": {
