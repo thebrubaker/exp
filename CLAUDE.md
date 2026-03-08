@@ -56,8 +56,7 @@ src/
     ├── cd-file.ts      # Write target dir to EXP_CD_FILE for shell wrapper
     └── shell-integration.ts  # Detect shell, rc file, install eval line
 
-commands/
-└── side-quest.md       # Claude Code /side-quest command
+commands/                   # (empty — /exp is now a global skill)
 ```
 
 ## Key Patterns
