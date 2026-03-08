@@ -116,9 +116,10 @@ async function detectCloneStatus(expDir: string): Promise<CloneStatus> {
 	return "clean";
 }
 
-/** Render a colored status dot */
-function statusDot(status: CloneStatus): string {
-	switch (status) {
+/** Render a colored status dot (or checkmark for done clones) */
+function statusDot(cloneStatus: CloneStatus, metaStatus?: string): string {
+	if (metaStatus === "done") return c.green("\u2713");
+	switch (cloneStatus) {
 		case "clean":
 			return c.green("\u25cf");
 		case "modified":
@@ -132,7 +133,7 @@ function statusDot(status: CloneStatus): string {
 function printLegend() {
 	console.log(
 		c.dim(
-			`  ${c.green("\u25cf")} clean  ${c.yellow("\u25cf")} modified  ${c.red("\u25cf")} unpushed`,
+			`  ${c.green("\u25cf")} clean  ${c.yellow("\u25cf")} modified  ${c.red("\u25cf")} unpushed  ${c.green("\u2713")} done`,
 		),
 	);
 	console.log();
@@ -210,8 +211,9 @@ async function printCompact(
 
 	function printRow(row: ExpEntry, isChild: boolean) {
 		const isCurrent = currentCloneDir !== null && row.expDir === currentCloneDir;
+		const isDone = row.status === "done";
 		const arrow = isCurrent ? c.cyan("→") : " ";
-		const dot = statusDot(row.cloneStatus);
+		const dot = statusDot(row.cloneStatus, row.status);
 
 		// prefix: top-level = "X " (2 chars), child = "X   └ " (6 chars)
 		const prefix = isChild ? `${arrow}   ${c.dim("└")} ` : `${arrow} `;
@@ -219,7 +221,11 @@ async function printCompact(
 		// Narrow the name column for children to compensate for the wider prefix
 		const nameWidth = isChild ? maxName - CHILD_EXTRA : maxName;
 		const namePadded = truncate(row.dirName, nameWidth).padEnd(nameWidth);
-		const nameCol = isCurrent ? c.bold(c.cyan(namePadded)) : c.bold(namePadded);
+		const nameCol = isDone
+			? c.dim(namePadded)
+			: isCurrent
+				? c.bold(c.cyan(namePadded))
+				: c.bold(namePadded);
 		const timeCol = c.dim((row.created ? timeAgo(row.created) : "?").padStart(maxTime));
 
 		if (showDesc) {

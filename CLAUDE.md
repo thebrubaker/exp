@@ -34,7 +34,8 @@ src/
 │   ├── diff.ts         # Git-native diff vs original (--detail for full)
 │   ├── home.ts         # cd to original project (from inside fork)
 │   ├── init.ts         # Interactive onboarding wizard + shell integration
-│   ├── trash.ts        # Delete fork
+│   ├── done.ts         # Mark fork as done (safe to trash)
+│   ├── trash.ts        # Delete fork (+ --done for batch cleanup)
 │   ├── open.ts         # Open terminal in fork
 │   ├── cd.ts           # cd to fork directory (+ proactive shell integration install)
 │   ├── shell-init.ts   # Print shell wrapper function (zsh/bash/fish)

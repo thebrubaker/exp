@@ -10,7 +10,8 @@ export interface ExpMetadata {
 	created: string;
 	number: number;
 	// Lifecycle tracking
-	status?: "active" | "trashed";
+	status?: "active" | "done" | "trashed";
+	doneAt?: string;
 	trashedAt?: string;
 }
 

@@ -5,6 +5,7 @@ import { cmdCd } from "./commands/cd.ts";
 import { cmdCleanExport } from "./commands/clean-export.ts";
 import { cmdClone } from "./commands/clone.ts";
 import { cmdDiff } from "./commands/diff.ts";
+import { cmdDone } from "./commands/done.ts";
 import { cmdHome } from "./commands/home.ts";
 import { cmdInit } from "./commands/init.ts";
 import { cmdLs } from "./commands/ls.ts";
@@ -38,8 +39,10 @@ function printHelp() {
     exp new "desc" --branch <name>  Use exact branch name
     exp ls [--detail]         List clones (--detail for git status + divergence)
     exp open <id>             Open terminal in clone
+    exp done [id] [--undo]    Mark clone as done (safe to trash later)
     exp diff <id>             What changed vs original (git-native when available)
     exp trash <id> [--force]  Delete clone (--force/-y skips confirmation)
+    exp trash --done          Trash all done clones
     exp nuke                  Delete ALL clones (interactive only — requires human)
     exp cp <src> [dest]       APFS clonefile copy of any directory
     exp cd <id>               Change to clone directory (with shell-init)
@@ -138,6 +141,9 @@ async function main() {
 				break;
 			case "init":
 				await cmdInit(config);
+				break;
+			case "done":
+				await cmdDone(rest, config);
 				break;
 			case "diff":
 			case "d":

@@ -1,5 +1,5 @@
-import { rmSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, readdirSync, rmSync } from "node:fs";
+import { basename, join } from "node:path";
 import { confirm } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
@@ -15,6 +15,13 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 	const positional = args.filter((a) => !a.startsWith("-"));
 	const query = positional[0];
 	const force = flags.includes("--force") || flags.includes("-y");
+	const trashDone = flags.includes("--done");
+
+	// ── Batch trash all done clones ──
+	if (trashDone) {
+		await trashAllDone(config, force);
+		return;
+	}
 
 	// ── Self-trash: no args, inside a clone ──
 	if (!query) {
@@ -98,5 +105,63 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 		console.log(JSON.stringify({ trashed: expName, path: expDir, elapsedMs: Math.round(elapsed) }));
 	} else {
 		ok(`Trashed ${expName} in ${fmt(elapsed)}`);
+	}
+}
+
+async function trashAllDone(config: ExpConfig, force: boolean) {
+	const root = getProjectRoot();
+	const base = getExpBase(root, config);
+
+	if (!existsSync(base)) {
+		dim("No clones found.");
+		return;
+	}
+
+	const entries = readdirSync(base, { withFileTypes: true })
+		.filter((e) => e.isDirectory())
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	const doneClones = entries.filter((e) => {
+		const meta = readMetadata(join(base, e.name));
+		return meta?.status === "done";
+	});
+
+	if (doneClones.length === 0) {
+		dim("No done clones to trash.");
+		return;
+	}
+
+	const s = doneClones.length === 1 ? "" : "s";
+	warn(`${doneClones.length} done clone${s} to trash:`);
+	for (const entry of doneClones) {
+		console.log(`  ${c.dim(entry.name)}`);
+	}
+
+	if (!force) {
+		if (!process.stdin.isTTY) {
+			err("Cannot confirm interactively (no TTY). Ask the human to run this command, or get their explicit approval before using --force.");
+			process.exit(1);
+		}
+
+		const yes = await confirm({ message: `Trash all ${doneClones.length} done clone${s}?` });
+		if (!yes) {
+			dim("Cancelled.");
+			return;
+		}
+	}
+
+	const t0 = performance.now();
+	const trashed: string[] = [];
+	for (const entry of doneClones) {
+		const expDir = join(base, entry.name);
+		rmSync(expDir, { recursive: true, force: true });
+		trashed.push(entry.name);
+	}
+	const elapsed = performance.now() - t0;
+
+	if (config.json) {
+		console.log(JSON.stringify({ trashed, elapsedMs: Math.round(elapsed) }));
+	} else {
+		ok(`Trashed ${trashed.length} done clone${s} in ${fmt(elapsed)}`);
 	}
 }
