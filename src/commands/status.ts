@@ -12,7 +12,7 @@ export async function cmdStatus(config: ExpConfig) {
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
-	const cloneCount = existsSync(base)
+	const branchCount = existsSync(base)
 		? readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory()).length
 		: 0;
 
@@ -30,7 +30,7 @@ export async function cmdStatus(config: ExpConfig) {
 				project: name,
 				root,
 				expDir: base,
-				clones: cloneCount,
+				branches: branchCount,
 				terminal,
 				clean: config.clean,
 				exports: exportCount,
@@ -47,7 +47,7 @@ export async function cmdStatus(config: ExpConfig) {
 	if (existsSync(base)) {
 		const sizeResult = await exec(["du", "-sh", base]);
 		const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
-		console.log(`${c.bold("Active:")}   ${cloneCount} clones (${size})`);
+		console.log(`${c.bold("Active:")}   ${branchCount} branches (${size})`);
 	} else {
 		console.log(`${c.bold("Active:")}   0`);
 	}

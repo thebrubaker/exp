@@ -62,27 +62,27 @@ function detectCleanTargets(): string[] {
 }
 
 function printPitch() {
-	console.log(c.bold("  exp — instant project cloning\n"));
+	console.log(c.bold("  exp — instant project branching\n"));
 
 	console.log("  You know the feeling. You're deep in a feature, everything's");
 	console.log('  working, and then you think: "what if I tried a completely');
 	console.log('  different approach?"\n');
 
 	console.log("  With git, that means stash, branch, context-switch, lose your");
-	console.log("  flow. With exp, you just clone:\n");
+	console.log("  flow. With exp, you just branch:\n");
 
 	console.log(c.dim("  ┌─────────────────────────────────────────────────┐"));
 	console.log(
 		`${c.dim("  │")}  ${c.cyan('$ exp new "try redis sessions"')}               ${c.dim("│")}`,
 	);
 	console.log(
-		`${c.dim("  │")}  ${c.green("✓")} 001-try-redis-sessions cloned in 48ms       ${c.dim("│")}`,
+		`${c.dim("  │")}  ${c.green("✓")} 001-try-redis-sessions created in 48ms       ${c.dim("│")}`,
 	);
 	console.log(`${c.dim("  │")}    branch: joel/try-redis-sessions              ${c.dim("│")}`);
 	console.log(`${c.dim("  │")}    cd /Users/you/.exp-myapp/001-try-redis-...   ${c.dim("│")}`);
 	console.log(`${c.dim("  │")}                                                ${c.dim("│")}`);
 	console.log(
-		`${c.dim("  │")}  ${c.dim("Full project clone. node_modules, .env, .git.")} ${c.dim("│")}`,
+		`${c.dim("  │")}  ${c.dim("Full project copy. node_modules, .env, .git.")}  ${c.dim("│")}`,
 	);
 	console.log(
 		`${c.dim("  │")}  ${c.dim("Near-zero disk. Ready to go.")}                   ${c.dim("│")}`,
@@ -93,20 +93,20 @@ function printPitch() {
 	info(c.bold("For you"));
 	console.log("  You're on a branch with unstaged changes. You need to update");
 	console.log("  turbo. That's annoying — you don't want to lose your context.");
-	console.log(`  ${c.cyan('exp new "turbo upgrade"')} — cd into the clone, you're ready.`);
+	console.log(`  ${c.cyan('exp new "turbo upgrade"')} — cd into the branch, you're ready.`);
 	console.log("  Your original project? Untouched. Merge via git when done.");
 	console.log();
 
 	info(c.bold("For AI agents"));
 	console.log("  Claude Code agents working in parallel need isolated workspaces.");
-	console.log("  Each agent gets a full APFS clone — zero conflicts, zero");
+	console.log("  Each agent gets a full APFS copy — zero conflicts, zero");
 	console.log("  orchestration overhead. Each commits to its own branch.");
 	console.log("  The orchestrator merges via git, not file juggling.");
 	console.log();
 
 	dim("  How: macOS APFS clonefile(2) — copy-on-write at the filesystem level.");
-	dim("  The clone shares all blocks with the original until files diverge.");
-	dim("  A 2GB project clones in ~50ms using ~0 extra disk.");
+	dim("  The branch shares all blocks with the original until files diverge.");
+	dim("  A 2GB project branches in ~50ms using ~0 extra disk.");
 	console.log();
 }
 
@@ -148,7 +148,7 @@ export async function cmdInit(_config: ExpConfig) {
 
 	// ── Auto-cd ──
 	const autoCd = await confirm({
-		message: `Auto-cd into clones after creating them? ${c.dim("(adds a shell wrapper to your profile)")}`,
+		message: `Auto-cd into branches after creating them? ${c.dim("(adds a shell wrapper to your profile)")}`,
 		default: existing.auto_cd !== "false",
 	});
 
@@ -214,9 +214,9 @@ export async function cmdInit(_config: ExpConfig) {
 		}
 	}
 
-	// ── Post-clone behavior ──
+	// ── Post-branch behavior ──
 	const autoTerminal = await confirm({
-		message: "Open a new terminal window after cloning?",
+		message: "Open a new terminal window after branching?",
 		default: existing.auto_terminal === "true",
 	});
 
@@ -260,7 +260,7 @@ export async function cmdInit(_config: ExpConfig) {
 		editorChoices.push({ name: "None", value: "none" });
 
 		const editorChoice = await select<string>({
-			message: "Auto-open clones in an editor?",
+			message: "Auto-open branches in an editor?",
 			default: existing.open_editor || "none",
 			choices: editorChoices,
 		});
@@ -326,17 +326,17 @@ export async function cmdInit(_config: ExpConfig) {
 	ok("You're set up!");
 	console.log();
 	info("Quick reference:");
-	console.log(`  ${c.cyan('exp new "description"')}    Clone the project`);
-	console.log(`  ${c.cyan("exp ls")}                   See your clones`);
-	console.log(`  ${c.cyan("exp cd <id>")}              Change to clone directory`);
+	console.log(`  ${c.cyan('exp new "description"')}    Create a new branch`);
+	console.log(`  ${c.cyan("exp ls")}                   See your branches`);
+	console.log(`  ${c.cyan("exp cd <id>")}              Change to branch directory`);
 	console.log(`  ${c.cyan("exp diff <id>")}            What changed`);
 	console.log(`  ${c.cyan("exp trash <id>")}           Clean up when done`);
 	console.log(`  ${c.cyan("exp cp <src> [dst]")}       APFS clone any directory`);
 	console.log();
 	if (cloneStrategy === "fast") {
-		dim("  Fast clone: node_modules copies in background after cd.");
+		dim("  Fast branch: node_modules copies in background after cd.");
 	}
-	dim("  Clones are isolated project copies with their own git branch.");
-	dim("  Commit, push, merge via PR — then trash the clone.");
+	dim("  Branches are isolated project copies with their own git branch.");
+	dim("  Commit, push, merge via PR — then trash the branch.");
 	console.log();
 }

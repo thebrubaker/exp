@@ -13,7 +13,7 @@ export function seedClaudeMd(
 	fromExp?: string,
 ) {
 	const claudePath = join(expDir, "CLAUDE.md");
-	const lineageLine = fromExp ? `\nCloned from \`${fromExp}\`.` : "";
+	const lineageLine = fromExp ? `\nBranched from \`${fromExp}\`.` : "";
 	const header = `${MARKER_START}
 ## Side quest: ${description}
 

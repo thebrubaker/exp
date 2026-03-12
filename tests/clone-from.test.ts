@@ -87,17 +87,17 @@ describe("source resolution with --from", () => {
 		mkdirSync(join(TMP, "002-dark-mode"));
 	});
 
-	test("resolves experiment by number", () => {
+	test("resolves branch by number", () => {
 		const resolved = resolveExp("1", TMP);
 		expect(resolved).toBe(join(TMP, "001-try-redis"));
 	});
 
-	test("resolves experiment by partial name", () => {
+	test("resolves branch by partial name", () => {
 		const resolved = resolveExp("redis", TMP);
 		expect(resolved).toBe(join(TMP, "001-try-redis"));
 	});
 
-	test("returns null for non-existent experiment", () => {
+	test("returns null for non-existent branch", () => {
 		const resolved = resolveExp("nope", TMP);
 		expect(resolved).toBeNull();
 	});
@@ -119,7 +119,7 @@ describe("metadata records correct source", () => {
 		expect(meta.source).toBe(projectRoot);
 	});
 
-	test("metadata source is experiment path when --from used", () => {
+	test("metadata source is branch path when --from used", () => {
 		const sourceExpDir = join(TMP, "001-try-redis");
 		mkdirSync(sourceExpDir);
 		const expDir = join(TMP, "002-variant");
@@ -140,12 +140,12 @@ describe("CLAUDE.md lineage info", () => {
 	test("includes fork info when fromExp is provided", () => {
 		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002", "001-try-redis");
 		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).toContain("Forked from `001-try-redis`");
+		expect(content).toContain("Branched from `001-try-redis`");
 	});
 
 	test("does not include fork info without fromExp", () => {
 		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002");
 		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).not.toContain("Forked from `");
+		expect(content).not.toContain("Branched from `");
 	});
 });

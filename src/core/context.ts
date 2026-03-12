@@ -19,7 +19,7 @@ export type Context = CloneContext | ProjectContext;
 
 /**
  * Walk up from cwd (or `from`) looking for a `.exp` metadata file.
- * If found, return clone context. Otherwise, return project context.
+ * If found, return branch context. Otherwise, return project context.
  */
 export function detectContext(from?: string): Context {
 	let dir = from ?? process.cwd();
@@ -39,7 +39,7 @@ export function detectContext(from?: string): Context {
 					number: meta.number,
 				};
 			} catch {
-				// Malformed .exp file — treat as not a clone
+				// Malformed .exp file — treat as not a branch
 				return { isClone: false };
 			}
 		}

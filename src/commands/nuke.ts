@@ -12,13 +12,13 @@ export async function cmdNuke(_args: string[], config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim(`No clones for ${name}`);
+		dim(`No branches for ${name}`);
 		return;
 	}
 
 	if (!process.stdin.isTTY) {
 		err("exp nuke requires interactive confirmation — a human must run this command.");
-		err("To delete individual clones programmatically, use: exp trash <id> --force");
+		err("To delete individual branches programmatically, use: exp trash <id> --force");
 		process.exit(1);
 	}
 
@@ -26,7 +26,7 @@ export async function cmdNuke(_args: string[], config: ExpConfig) {
 	const sizeResult = await exec(["du", "-sh", base]);
 	const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
 
-	warn(`Delete ALL ${entries.length} clones for ${c.cyan(name)}? (${size})`);
+	warn(`Delete ALL ${entries.length} branches for ${c.cyan(name)}? (${size})`);
 
 	const answer = await input({ message: "Type project name to confirm:" });
 	if (answer !== name) {
@@ -35,5 +35,5 @@ export async function cmdNuke(_args: string[], config: ExpConfig) {
 	}
 
 	rmSync(base, { recursive: true, force: true });
-	ok(`Nuked all clones for ${name}`);
+	ok(`Nuked all branches for ${name}`);
 }

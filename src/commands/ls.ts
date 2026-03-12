@@ -9,7 +9,7 @@ import { c, dim } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
 import { timeAgo } from "../utils/time.ts";
 
-type CloneStatus = "clean" | "modified" | "unpushed";
+type BranchStatus = "clean" | "modified" | "unpushed";
 
 interface ExpEntry {
 	dirName: string;
@@ -18,10 +18,10 @@ interface ExpEntry {
 	description: string;
 	created: string;
 	status: string;
-	cloneStatus: CloneStatus;
+	branchStatus: BranchStatus;
 }
 
-interface ExpDetailEntry extends Omit<ExpEntry, "cloneStatus"> {
+interface ExpDetailEntry extends Omit<ExpEntry, "branchStatus"> {
 	gitStatus: string;
 	fileDivergence: string;
 	divergedSize: string;
@@ -49,16 +49,16 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		return;
 	}
 
-	// When inside a clone, list from the original project root so the user
-	// sees the full sibling list rather than clones-of-this-clone only.
+	// When inside a branch, list from the original project root so the user
+	// sees the full sibling list rather than branches-of-this-branch only.
 	const ctx = detectContext();
 	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
-	const currentCloneDir = ctx.isClone ? ctx.expDir : null;
+	const currentBranchDir = ctx.isClone ? ctx.expDir : null;
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim(`No clones for ${name}. Run: exp new "my idea"`);
+		dim(`No branches for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
@@ -67,14 +67,14 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		.sort((a, b) => a.name.localeCompare(b.name));
 
 	if (entries.length === 0) {
-		dim(`No clones for ${name}. Run: exp new "my idea"`);
+		dim(`No branches for ${name}. Run: exp new "my idea"`);
 		return;
 	}
 
 	if (detail) {
 		await printDetail(entries, base, root, name);
 	} else {
-		await printCompact(entries, base, root, name, currentCloneDir);
+		await printCompact(entries, base, root, name, currentBranchDir);
 	}
 }
 
@@ -84,7 +84,7 @@ export function truncate(str: string, maxLen: number): string {
 	return `${str.slice(0, maxLen - 1)}\u2026`;
 }
 
-/** Extract the slug portion from a clone dir name (e.g., "001-try-redis" -> "try-redis") */
+/** Extract the slug portion from a branch dir name (e.g., "001-try-redis" -> "try-redis") */
 export function extractSlug(dirName: string): string {
 	return dirName.replace(/^\d+-/, "");
 }
@@ -96,8 +96,8 @@ export function descriptionMatchesSlug(description: string, dirName: string): bo
 	return slugify(description) === slug;
 }
 
-/** Detect clone status: clean, modified, or unpushed */
-async function detectCloneStatus(expDir: string): Promise<CloneStatus> {
+/** Detect branch status: clean, modified, or unpushed */
+async function detectBranchStatus(expDir: string): Promise<BranchStatus> {
 	if (!existsSync(`${expDir}/.git`)) return "modified";
 
 	// Check for uncommitted changes
@@ -116,10 +116,10 @@ async function detectCloneStatus(expDir: string): Promise<CloneStatus> {
 	return "clean";
 }
 
-/** Render a colored status dot (or checkmark for done clones) */
-function statusDot(cloneStatus: CloneStatus, metaStatus?: string): string {
+/** Render a colored status dot (or checkmark for done branches) */
+function statusDot(branchStatus: BranchStatus, metaStatus?: string): string {
 	if (metaStatus === "done") return c.green("\u2713");
-	switch (cloneStatus) {
+	switch (branchStatus) {
 		case "clean":
 			return c.green("\u25cf");
 		case "modified":
@@ -144,16 +144,16 @@ async function printCompact(
 	base: string,
 	_sourceRoot: string,
 	projectName: string,
-	currentCloneDir: string | null = null,
+	currentBranchDir: string | null = null,
 ) {
-	// Gather clone statuses in parallel (fast: just git status + git log per clone)
+	// Gather branch statuses in parallel (fast: just git status + git log per branch)
 	const statusPromises = entries.map(async (entry) => {
 		const expDir = `${base}/${entry.name}`;
-		const cloneStatus = await detectCloneStatus(expDir);
-		return { name: entry.name, cloneStatus };
+		const branchStatus = await detectBranchStatus(expDir);
+		return { name: entry.name, branchStatus };
 	});
 	const statuses = await Promise.all(statusPromises);
-	const statusMap = new Map(statuses.map((s) => [s.name, s.cloneStatus]));
+	const statusMap = new Map(statuses.map((s) => [s.name, s.branchStatus]));
 
 	// Build row data (include source for parent-child grouping)
 	const rows: ExpEntry[] = entries.map((entry) => {
@@ -166,16 +166,16 @@ async function printCompact(
 			description: meta?.description ?? "",
 			created: meta?.created ?? "",
 			status: meta?.status ?? "active",
-			cloneStatus: statusMap.get(entry.name) ?? "modified",
+			branchStatus: statusMap.get(entry.name) ?? "modified",
 		};
 	});
 
-	// Group: top-level clones vs children (source points to another clone dir)
-	const cloneDirSet = new Set(rows.map((r) => r.expDir));
-	const topLevel = rows.filter((r) => !cloneDirSet.has(r.source));
+	// Group: top-level branches vs children (source points to another branch dir)
+	const branchDirSet = new Set(rows.map((r) => r.expDir));
+	const topLevel = rows.filter((r) => !branchDirSet.has(r.source));
 	const childrenByParent = new Map<string, ExpEntry[]>();
 	for (const row of rows) {
-		if (cloneDirSet.has(row.source)) {
+		if (branchDirSet.has(row.source)) {
 			const arr = childrenByParent.get(row.source) ?? [];
 			arr.push(row);
 			childrenByParent.set(row.source, arr);
@@ -195,12 +195,14 @@ async function printCompact(
 		: 0;
 	const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
-	// Header: note if we're viewing from inside a clone
-	const currentCloneEntry = currentCloneDir ? rows.find((r) => r.expDir === currentCloneDir) : null;
-	const headerSuffix = currentCloneEntry ? c.dim(` (inside ${currentCloneEntry.dirName})`) : "";
+	// Header: note if we're viewing from inside a branch
+	const currentBranchEntry = currentBranchDir
+		? rows.find((r) => r.expDir === currentBranchDir)
+		: null;
+	const headerSuffix = currentBranchEntry ? c.dim(` (inside ${currentBranchEntry.dirName})`) : "";
 
 	console.log();
-	console.log(`${c.bold(`Clones for ${c.cyan(projectName)}`)}${headerSuffix}`);
+	console.log(`${c.bold(`Branches for ${c.cyan(projectName)}`)}${headerSuffix}`);
 	console.log();
 
 	// Row format: [prefix][dot] [name]  [desc]  [time]
@@ -210,10 +212,10 @@ async function printCompact(
 	const CHILD_EXTRA = 4; // child prefix is 4 chars wider than top-level
 
 	function printRow(row: ExpEntry, isChild: boolean) {
-		const isCurrent = currentCloneDir !== null && row.expDir === currentCloneDir;
+		const isCurrent = currentBranchDir !== null && row.expDir === currentBranchDir;
 		const isDone = row.status === "done";
 		const arrow = isCurrent ? c.cyan("→") : " ";
-		const dot = statusDot(row.cloneStatus, row.status);
+		const dot = statusDot(row.branchStatus, row.status);
 
 		// prefix: top-level = "X " (2 chars), child = "X   └ " (6 chars)
 		const prefix = isChild ? `${arrow}   ${c.dim("└")} ` : `${arrow} `;
@@ -283,7 +285,7 @@ async function printDetail(
 	const details = await Promise.all(detailPromises);
 
 	console.log();
-	console.log(`${c.bold(`Clones for ${c.cyan(projectName)}`)}`);
+	console.log(`${c.bold(`Branches for ${c.cyan(projectName)}`)}`);
 	console.log();
 
 	for (const d of details) {
@@ -325,16 +327,16 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const clones = readdirSync(base, { withFileTypes: true })
+			const branches = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name));
 
-			if (clones.length === 0) continue;
+			if (branches.length === 0) continue;
 
 			found = true;
 
 			// Build row data for this project
-			const rows = clones.map((f) => {
+			const rows = branches.map((f) => {
 				const expDir = join(base, f.name);
 				const meta = readMetadata(expDir);
 				return {
@@ -356,7 +358,7 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 			const maxTime = Math.max(...rows.map((r) => (r.created ? timeAgo(r.created).length : 1)));
 
 			console.log();
-			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${clones.length} clones)`)}`);
+			console.log(`${c.bold(c.cyan(projectName))} ${c.dim(`(${branches.length} branches)`)}`);
 
 			for (const row of rows) {
 				const nameCol = c.bold(truncate(row.dirName, NAME_CAP).padEnd(maxName));
@@ -373,7 +375,7 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 	}
 
 	if (!found) {
-		dim("No clones found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
+		dim("No branches found. Scanned: ~/Code, ~/Projects, ~/Developer, ~/src");
 	}
 
 	console.log();
@@ -385,7 +387,7 @@ async function printJson(config: ExpConfig) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		console.log(JSON.stringify({ project: name, clones: [] }));
+		console.log(JSON.stringify({ project: name, branches: [] }));
 		return;
 	}
 
@@ -393,7 +395,7 @@ async function printJson(config: ExpConfig) {
 		.filter((e) => e.isDirectory())
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	const clones = entries.map((entry) => {
+	const branches = entries.map((entry) => {
 		const expDir = `${base}/${entry.name}`;
 		const meta = readMetadata(expDir);
 		return {
@@ -406,7 +408,7 @@ async function printJson(config: ExpConfig) {
 		};
 	});
 
-	console.log(JSON.stringify({ project: name, root, clones }));
+	console.log(JSON.stringify({ project: name, root, branches }));
 }
 
 async function printJsonGlobal(config: ExpConfig) {
@@ -424,7 +426,7 @@ async function printJsonGlobal(config: ExpConfig) {
 	const projects: Array<{
 		project: string;
 		root: string;
-		clones: Array<Record<string, unknown>>;
+		branches: Array<Record<string, unknown>>;
 	}> = [];
 
 	for (const scanPath of scanPaths) {
@@ -437,7 +439,7 @@ async function printJsonGlobal(config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const clones = readdirSync(base, { withFileTypes: true })
+			const branches = readdirSync(base, { withFileTypes: true })
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.sort((a, b) => a.name.localeCompare(b.name))
 				.map((e) => {
@@ -453,11 +455,11 @@ async function printJsonGlobal(config: ExpConfig) {
 					};
 				});
 
-			if (clones.length > 0) {
+			if (branches.length > 0) {
 				projects.push({
 					project: projectName,
 					root: join(scanPath, projectName),
-					clones,
+					branches,
 				});
 			}
 		}

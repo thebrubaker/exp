@@ -4,7 +4,7 @@ Version: v0.8.0
 
 ## Overview
 
-`exp` is a CLI tool for instant project forking via macOS APFS clonefile. Fast worktrees + convention layer for git. TypeScript/Bun, compiled to a standalone binary.
+`exp` is a CLI tool for instant project branching via macOS APFS clonefile. Fast worktrees + convention layer for git. TypeScript/Bun, compiled to a standalone binary.
 
 ## Development Commands
 
@@ -30,23 +30,23 @@ src/
 ├── exp.ts              # Entry point (shebang, arg routing)
 ├── commands/           # One file per command
 │   ├── new.ts          # Clone + metadata + seed + auto-branch + cd
-│   ├── ls.ts           # List forks (compact/detail, --all for global)
+│   ├── ls.ts           # List branches (compact/detail, --all for global)
 │   ├── diff.ts         # Git-native diff vs original (--detail for full)
-│   ├── home.ts         # cd to original project (from inside fork)
+│   ├── home.ts         # cd to original project (from inside branch)
 │   ├── init.ts         # Interactive onboarding wizard + shell integration
-│   ├── done.ts         # Mark fork as done (safe to trash)
-│   ├── trash.ts        # Delete fork (+ --done for batch cleanup)
-│   ├── open.ts         # Open terminal in fork
-│   ├── cd.ts           # cd to fork directory (+ proactive shell integration install)
+│   ├── done.ts         # Mark branch as done (safe to trash)
+│   ├── trash.ts        # Delete branch (+ --done for batch cleanup)
+│   ├── open.ts         # Open terminal in branch
+│   ├── cd.ts           # cd to branch directory (+ proactive shell integration install)
 │   ├── shell-init.ts   # Print shell wrapper function (zsh/bash/fish)
 │   ├── status.ts       # Project info
-│   ├── nuke.ts         # Delete ALL forks
+│   ├── nuke.ts         # Delete ALL branches
 │   └── clean-export.ts # Remove /export files
 ├── core/               # Business logic
 │   ├── config.ts       # EXP_* env vars + config file loading (merges on write)
 │   ├── project.ts      # Project root detection
-│   ├── experiment.ts   # Fork resolution, numbering, metadata, branch prefix
-│   ├── context.ts      # Detect fork vs project context
+│   ├── experiment.ts   # Branch resolution, numbering, metadata, branch prefix
+│   ├── context.ts      # Detect branch vs project context
 │   ├── clone.ts        # APFS clone with fallback
 │   └── claude.ts       # CLAUDE.md seeding
 └── utils/              # Shared helpers
@@ -66,18 +66,19 @@ commands/                   # (empty — /exp is now a global skill)
 - **Shell integration install:** `exp cd` proactively offers to install on first use without wrapper (TTY only, remembers if declined via `shell_integration_prompted` config key). Also offered in `exp init`.
 - **Config merging:** `writeConfig()` merges new values with existing config so custom keys (e.g., `root`) aren't lost.
 - **Terminal opening:** Ghostty uses `open -na` for new windows; iTerm/Terminal use osascript; tmux uses native commands
-- **Terminal behavior:** Terminal opening is opt-in via `--terminal` flag (or `auto_terminal=true` in config). Default: cd into fork.
-- **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables fork-from-fork and `exp home`
+- **Terminal behavior:** Terminal opening is opt-in via `--terminal` flag (or `auto_terminal=true` in config). Default: cd into branch.
+- **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables branch-from-branch and `exp home`
 - **CLAUDE.md seeding:** Prepends between `<!-- exp:start -->` and `<!-- exp:end -->` HTML comment markers
-- **Fork resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
+- **Branch resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
+
 - **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
 - **Clone strategy:** `clone_strategy=fast` in config or `--strategy fast` flag. Root-scans the source, clonefiles everything except `defer_dirs` (default: `node_modules`), returns in ~577ms. The shell wrapper then spawns `cp -cR` in the background for deferred dirs — user gets their prompt immediately, `node_modules` appears seconds later. Symlink strategy was tried first but Turbopack rejects symlinks pointing outside the project root.
 
 ## Benchmarking & Sanity Checks
 
-Scripts for measuring clone performance and validating assumptions. Run these when changing clone strategy or investigating slowness.
+Scripts for measuring clonefile performance and validating assumptions. Run these when changing clone strategy or investigating slowness.
 
 ```bash
 # First-time fixture setup (creates tests/fixtures/turbo-mono, installs deps, runs build)

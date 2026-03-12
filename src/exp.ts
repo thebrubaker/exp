@@ -25,30 +25,30 @@ const VERSION = "0.8.0";
 
 function printHelp() {
 	console.log(`
-  exp — instant project cloning via APFS clonefile
+  exp — instant project branching via APFS clonefile
 
   WORKFLOW
     /export                       <- optional: save Claude session to file
-    exp new "try redis caching"   <- instant clone, cd into it
-    exp clean-export              <- remove export from original (clone keeps it)
+    exp new "try redis caching"   <- instant branch, cd into it
+    exp clean-export              <- remove export from original (branch keeps it)
 
   COMMANDS
     exp init                  Set up preferences (terminal, editor, clean targets)
-    exp new "description"     Clone project (prints cd path by default)
-    exp new "desc" --from <id>  Clone from existing clone
+    exp new "description"     Create a new branch (prints cd path by default)
+    exp new "desc" --from <id>  Branch from existing branch
     exp new "desc" --branch <name>  Use exact branch name
-    exp ls [--detail]         List clones (--detail for git status + divergence)
-    exp open <id>             Open terminal in clone
-    exp done [id] [--undo]    Mark clone as done (safe to trash later)
+    exp ls [--detail]         List branches (--detail for git status + divergence)
+    exp open <id>             Open terminal in branch
+    exp done [id] [--undo]    Mark branch as done (safe to trash later)
     exp diff <id>             What changed vs original (git-native when available)
-    exp trash <id> [--force]  Delete clone (--force/-y skips confirmation)
-    exp trash --done          Trash all done clones
-    exp nuke                  Delete ALL clones (interactive only — requires human)
+    exp trash <id> [--force]  Delete branch (--force/-y skips confirmation)
+    exp trash --done          Trash all done branches
+    exp nuke                  Delete ALL branches (interactive only — requires human)
     exp cp <src> [dest]       APFS clonefile copy of any directory
-    exp cd <id>               Change to clone directory (with shell-init)
+    exp cd <id>               Change to branch directory (with shell-init)
     exp home                  Change to original project (with shell-init)
     exp status                Project info
-    exp clean-export          Remove /export files from original after cloning
+    exp clean-export          Remove /export files from original after branching
     exp shell-init [shell]    Print shell integration (zsh/bash/fish)
 
   IDs
@@ -59,17 +59,17 @@ function printHelp() {
     EXP_* env vars     Override config file values
 
     Keys / env vars:
-      root             EXP_ROOT           Override clone storage location
+      root             EXP_ROOT           Override branch storage location
       terminal         EXP_TERMINAL       auto | ghostty | iterm | terminal | warp | tmux | none
       open_editor      EXP_OPEN_EDITOR    code | cursor | zed
-      clean            EXP_CLEAN          Dirs to nuke after clone (default: .next .turbo)
+      clean            EXP_CLEAN          Dirs to nuke after branching (default: .next .turbo)
       branch_prefix    EXP_BRANCH_PREFIX  Branch prefix (default: git first name or "exp")
-      auto_terminal    EXP_AUTO_TERMINAL  Auto-open terminal on clone (default: false)
+      auto_terminal    EXP_AUTO_TERMINAL  Auto-open terminal on branch (default: false)
 
   FLAGS
     --json               Machine-readable JSON output (for AI/scripts)
     --verbose            Show timing, paths, and method details
-    --terminal           Open a new terminal window in clone
+    --terminal           Open a new terminal window in branch
     --no-terminal        Suppress terminal (overrides auto_terminal)
 
   SHELL INTEGRATION
@@ -81,7 +81,7 @@ function printHelp() {
     With this, \`exp cd 11\` and \`exp new "foo"\` change your directory automatically.
 
   HOW IT WORKS
-    macOS clonefile(2) syscall: atomic copy-on-write clone of entire directory.
+    macOS clonefile(2) syscall: atomic copy-on-write clone of entire project.
     .env, .git, node_modules, exports — everything comes along, near-zero disk.
 `);
 }
@@ -97,17 +97,17 @@ function printContextHint(config: ExpConfig) {
 		return;
 	}
 
-	// Show clone count for current project if we're in one
+	// Show branch count for current project if we're in one
 	try {
 		const root = getProjectRoot();
 		const base = getExpBase(root, config);
 		if (existsSync(base)) {
-			const clones = readdirSync(base).filter((f) => /^\d{3}-/.test(f));
-			if (clones.length > 0) {
-				const s = clones.length === 1 ? "" : "s";
-				info(`${clones.length} active clone${s} — run: ${c.cyan("exp ls")}`);
+			const branches = readdirSync(base).filter((f) => /^\d{3}-/.test(f));
+			if (branches.length > 0) {
+				const s = branches.length === 1 ? "" : "es";
+				info(`${branches.length} active branch${s} — run: ${c.cyan("exp ls")}`);
 			} else {
-				dim(`  No clones yet — run: ${c.cyan('exp new "description"')}`);
+				dim(`  No branches yet — run: ${c.cyan('exp new "description"')}`);
 			}
 			console.log();
 		}

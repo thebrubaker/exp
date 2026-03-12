@@ -1,7 +1,7 @@
 ---
 name: exp
-tagline: Instant project forking via APFS clonefile. Zero disk, zero fear.
-description: A CLI tool for macOS that creates fully isolated project copies in milliseconds using APFS copy-on-write cloning. Fork your project, try something wild, promote or trash it.
+tagline: Instant project branching via APFS clonefile. Zero disk, zero fear.
+description: A CLI tool for macOS that creates fully isolated project branches in milliseconds using APFS copy-on-write cloning. Branch your project, try something wild, merge or trash it.
 subdomain: exp
 status: active
 github: thebrubaker/exp
@@ -18,11 +18,11 @@ You *want* to try it.
 
 But you also know what happens next. You'll stash your work (and forget the stash name). Or create a branch (and forget to clean it up). Or — if you're being honest — you'll just start hacking in place and pray `git checkout .` will save you if it goes sideways.
 
-**None of these give you what you actually want: a full, isolated copy of your project that you can blow up without consequence.**
+**None of these give you what you actually want: a fully isolated branch of your project that you can blow up without consequence.**
 
 ---
 
-# What If Forking Was Free?
+# What If Branching Was Free?
 
 macOS sits on APFS — a filesystem with copy-on-write cloning built in. When you clone a file, the OS doesn't copy the bytes. It just says "these two files share the same data, and I'll only allocate new space when one of them changes."
 
@@ -35,7 +35,7 @@ $ exp new "try the new router"
 
   ✓ Cloned to .exp-myproject/001-try-the-new-router
   ✓ Created branch exp/try-the-new-router
-  ✓ Seeded CLAUDE.md with fork context
+  ✓ Seeded CLAUDE.md with branch context
   ✓ Opening terminal...
 
   ~484 bytes diverged (basically nothing)
@@ -51,7 +51,7 @@ I built `exp` because I run Claude Code agents in parallel — and they need iso
 
 ## The Orchestrator Pattern
 
-When I have a feature that decomposes into independent streams, I fork once per stream:
+When I have a feature that decomposes into independent streams, I branch once per stream:
 
 ```bash
 exp new "api endpoints"      # → 001
@@ -59,7 +59,7 @@ exp new "service layer"      # → 002
 exp new "client integration" # → 003
 ```
 
-Each agent works in its own clone. No file ownership rules, no merge conflicts during work. When they're done, I diff each fork against the original and reconcile:
+Each agent works in its own branch. No file ownership rules, no merge conflicts during work. When they're done, I diff each branch against the original and reconcile:
 
 ```bash
 $ exp diff 001
@@ -71,7 +71,7 @@ $ exp diff 001
   3 files changed, ~2.1KB diverged
 ```
 
-Copy the changed files back, verify, trash the forks. The whole cycle takes minutes.
+Copy the changed files back, verify, trash the branches. The whole cycle takes minutes.
 
 ## The Side Quest
 
@@ -81,11 +81,11 @@ Sometimes you're working on something and a tangent appears — not related to t
 exp new "what if we used sqlite instead"
 ```
 
-If it works out, `exp promote` replaces your original with the fork (with a backup). If it doesn't, `exp trash` and you're back where you started. No branches to clean up, no stash to remember, no mental overhead.
+If it works out, `exp promote` replaces your original with the branch (with a backup). If it doesn't, `exp trash` and you're back where you started. No git branches to clean up, no stash to remember, no mental overhead.
 
 ## The Safety Net
 
-Before doing anything destructive — a major refactor, a dependency upgrade, a database migration — I fork first. Not because I don't trust `git reset --hard`, but because a full project clone (including `node_modules`, `.env`, running state) gives me a confidence that version control alone doesn't.
+Before doing anything destructive — a major refactor, a dependency upgrade, a database migration — I branch first. Not because I don't trust `git reset --hard`, but because a full project clone (including `node_modules`, `.env`, running state) gives me a confidence that version control alone doesn't.
 
 ---
 
@@ -95,7 +95,7 @@ Before doing anything destructive — a major refactor, a dependency upgrade, a 
 
 Of course, you could just `cp -R` the project. But consider: a typical Node.js project with `node_modules` is 500MB–2GB. Copying that takes 10–30 seconds and doubles your disk usage.
 
-APFS clonefile does it in *milliseconds* with *near-zero* disk overhead. Files only consume additional space when they diverge. A fork where you changed three files might use 50KB total.
+APFS clonefile does it in *milliseconds* with *near-zero* disk overhead. Files only consume additional space when they diverge. A branch where you changed three files might use 50KB total.
 
 ```tsx rechart height=200
 const data = [
@@ -121,7 +121,7 @@ const barColors = [theme.colors.muted, theme.colors.tertiary, theme.colors.prima
 
 ## Claude Code Integration
 
-Every fork gets its CLAUDE.md seeded with context — what the fork is for, where the original lives, how to diff and trash. When an AI agent opens the fork, it immediately knows what it's working on and how to get back.
+Every branch gets its CLAUDE.md seeded with context — what the branch is for, where the original lives, how to diff and trash. When an AI agent opens the branch, it immediately knows what it's working on and how to get back.
 
 ```markdown
 <!-- exp:start -->
@@ -149,16 +149,16 @@ The TypeScript/Bun compiled binary is larger than the 17KB bash prototype it rep
 
 ### Port Conflicts Are Your Problem
 
-If your original runs a dev server on port 3000 and you open a fork, they'll fight over the port. `exp` doesn't solve this — it's a filesystem tool, not a process manager. Kill the original's server first, or use a different port.
+If your original runs a dev server on port 3000 and you open a branch, they'll fight over the port. `exp` doesn't solve this — it's a filesystem tool, not a process manager. Kill the original's server first, or use a different port.
 
 ---
 
 # Where This Is Going
 
-`exp` is at v0.3.2. The core — fork, diff, trash — is solid. Eleven commands, minimal configuration, and fork IDs are flexible enough that `exp diff redis` resolves to `001-try-redis` without thinking about it.
+`exp` is at v0.3.2. The core — branch, diff, trash — is solid. Eleven commands, minimal configuration, and branch IDs are flexible enough that `exp diff redis` resolves to `001-try-redis` without thinking about it.
 
-What I keep reaching for that doesn't exist yet: a `cherry` command that copies specific files back from a fork without doing a full promote. Right now I `/bin/cp` them manually during reconciliation. It's fine for three files. It's annoying for twelve.
+What I keep reaching for that doesn't exist yet: a `cherry` command that copies specific files back from a branch without doing a full promote. Right now I `/bin/cp` them manually during reconciliation. It's fine for three files. It's annoying for twelve.
 
 ---
 
-This project was built *using itself*. Every feature was developed in an `exp` fork, tested in isolation, and promoted back when it worked. The orchestration workflow described above? That's literally how the three-agent rewrite of `exp ls` shipped — three Opus agents, three clones, reconciled in minutes.
+This project was built *using itself*. Every feature was developed in an `exp` branch, tested in isolation, and promoted back when it worked. The orchestration workflow described above? That's literally how the three-agent rewrite of `exp ls` shipped — three Opus agents, three branches, reconciled in minutes.

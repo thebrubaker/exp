@@ -238,7 +238,7 @@ async function jsonDiff(
 	console.log(
 		JSON.stringify({
 			project: name,
-			clone: expName,
+			expBranch: expName,
 			path: expDir,
 			branch,
 			uncommitted,

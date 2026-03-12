@@ -32,10 +32,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const filteredArgs: string[] = [];
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(`
-  exp new "description"           Clone project into a new clone
-  exp new "desc" --from <id>      Clone from existing clone instead of project root
+  exp new "description"           Create a new branch
+  exp new "desc" --from <id>      Branch from existing branch instead of project root
   exp new "desc" --branch <name>  Use exact branch name (skip auto-prefix)
-  exp new "desc" --terminal       Open a new terminal window in clone
+  exp new "desc" --terminal       Open a new terminal window in branch
   exp new "desc" --no-terminal    Suppress terminal (overrides auto_terminal config)
   exp new "desc" --strategy <s>   Clone strategy: full (default) or fast
 `);
@@ -64,7 +64,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			filteredArgs.push(args[i]);
 		}
 	}
-	const description = filteredArgs.join(" ") || "clone";
+	const description = filteredArgs.join(" ") || "branch";
 
 	// Auto-detect branch name: if description looks like a branch name
 	// (single token, no spaces, contains a slash or hyphen), use it directly
@@ -72,7 +72,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		branchOverride = description;
 	}
 
-	// Auto-detect: are we inside a clone?
+	// Auto-detect: are we inside a branch?
 	const ctx = detectContext();
 
 	// Determine the real project root
@@ -92,7 +92,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const expName = `${num}-${slug}`;
 	const expDir = `${base}/${expName}`;
 
-	// Resolve clone source
+	// Resolve source for cloning
 	let cloneSource = root;
 	let cloneSourceLabel = name;
 	let fromExpName: string | undefined;
@@ -100,13 +100,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		// Explicit --from flag
 		const resolved = resolveExp(fromId, base);
 		if (!resolved) {
-			throw new Error(`Clone not found: ${fromId}`);
+			throw new Error(`Branch not found: ${fromId}`);
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
 	} else if (ctx.isClone) {
-		// Auto-detected: we're inside a clone, clone from it
+		// Auto-detected: we're inside a branch, branch from it
 		cloneSource = ctx.expDir;
 		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
@@ -121,9 +121,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	let deferredPaths: string[] = [];
 
 	if (strategy === "fast") {
-		spinner.update(
-			`Cloning (deferring ${config.deferDirs.join(", ")})...`,
-		);
+		spinner.update(`Cloning (deferring ${config.deferDirs.join(", ")})...`);
 		const result = fastCloneProject(cloneSource, expDir, config.deferDirs);
 		method = result.method;
 		deferredPaths = result.deferredPaths;
@@ -153,7 +151,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	spinner.update("Seeding CLAUDE.md...");
 	seedClaudeMd(expDir, description, name, root, num, fromExpName);
 
-	// Add .exp to clone's .gitignore so metadata doesn't get committed
+	// Add .exp to branch's .gitignore so metadata doesn't get committed
 	spinner.update("Configuring gitignore...");
 	const gitignorePath = `${expDir}/.gitignore`;
 	if (existsSync(gitignorePath)) {
@@ -234,7 +232,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	const totalMs = performance.now() - t0;
 
-	// Tell the shell wrapper to cd into the clone
+	// Tell the shell wrapper to cd into the branch
 	const wrapperActive = writeCdTarget(expDir);
 
 	// Write deferred clone instructions for the shell wrapper
@@ -281,7 +279,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
 		if (ctx.isClone && !fromId) {
-			dim(`  (auto-detected: cloning from ${ctx.expName})`);
+			dim(`  (auto-detected: branching from ${ctx.expName})`);
 		}
 
 		if (branchName) {
@@ -292,7 +290,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		if (deferredPaths.length > 0) {
 			warn(
-				`${config.deferDirs.join(", ")} cloning in background (${deferredPaths.length} locations)`,
+				`${config.deferDirs.join(", ")} copying in background (${deferredPaths.length} locations)`,
 			);
 		}
 
@@ -301,7 +299,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			existsSync(`${root}/next.config.mjs`) ||
 			existsSync(`${root}/next.config.ts`);
 		if (existsSync(`${root}/package.json`) || hasNextConfig) {
-			warn("If dev server is running, the clone may need a different port");
+			warn("If dev server is running, the branch may need a different port");
 			dim("  e.g. PORT=3001 pnpm dev");
 		}
 
@@ -315,7 +313,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		dim(`  total: ${fmt(totalMs)}`);
 		dim(`  exp diff ${num} · exp trash ${num}`);
 	} else {
-		ok(`${c.bold(expName)} ${c.dim(`cloned in ${fmt(totalMs)}`)}`);
+		ok(`${c.bold(expName)} ${c.dim(`created in ${fmt(totalMs)}`)}`);
 
 		if (branchName) {
 			dim(`  branch: ${branchName}${branchReused ? " (already existed)" : ""}`);
@@ -324,9 +322,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		dim(`  path:   ${expDir}`);
 
 		if (deferredPaths.length > 0) {
-			warn(
-				`${config.deferDirs.join(", ")} cloning in background`,
-			);
+			warn(`${config.deferDirs.join(", ")} copying in background`);
 		}
 
 		if (terminalType === "none" && !wrapperActive) {

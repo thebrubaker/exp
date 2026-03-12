@@ -98,4 +98,3 @@ export function fastCloneProject(
 
 	return { method: "fast", deferredPaths };
 }
-

@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
  * Tests for smart `exp new` features:
  * - Flag parsing: --terminal, --no-terminal, --from
  * - TTY detection logic
- * - Experiment context auto-detection
+ * - Branch context auto-detection
  *
  * These test the parsing and decision logic extracted from cmdNew,
  * not the full command (which requires filesystem + cloning).
@@ -32,7 +32,7 @@ function parseNewFlags(args: string[]) {
 			filteredArgs.push(args[i]);
 		}
 	}
-	const description = filteredArgs.join(" ") || "fork";
+	const description = filteredArgs.join(" ") || "branch";
 	return { fromId, terminalOverride, branchOverride, filteredArgs, description };
 }
 
@@ -94,7 +94,7 @@ describe("flag parsing", () => {
 		expect(result.fromId).toBeNull();
 		expect(result.terminalOverride).toBeNull();
 		expect(result.filteredArgs).toEqual([]);
-		expect(result.description).toBe("fork");
+		expect(result.description).toBe("branch");
 	});
 
 	test("--terminal does not consume the next arg", () => {
@@ -171,7 +171,7 @@ describe("terminal decision", () => {
 	});
 });
 
-// ── Experiment Context Auto-detection ──
+// ── Branch Context Auto-detection ──
 
 import { afterEach, beforeEach } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -199,7 +199,7 @@ function writeExpMeta(dir: string, meta: Record<string, unknown>) {
 }
 
 /**
- * Simulate the clone source resolution logic from cmdNew.
+ * Simulate the source resolution logic from cmdNew.
  * Returns the clone source and fromExpName that would be used.
  */
 function resolveCloneSource(
@@ -221,7 +221,7 @@ function resolveCloneSource(
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
-	} else if (ctx.isFork) {
+	} else if (ctx.isClone) {
 		cloneSource = ctx.expDir;
 		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
@@ -230,8 +230,8 @@ function resolveCloneSource(
 	return { cloneSource, cloneSourceLabel, fromExpName };
 }
 
-describe("experiment context auto-detection", () => {
-	test("when inside experiment and no --from, clones from current experiment", () => {
+describe("branch context auto-detection", () => {
+	test("when inside branch and no --from, clones from current branch", () => {
 		const expDir = join(tmpBase, "001-try-redis");
 		mkdirSync(expDir);
 		writeExpMeta(expDir, {
@@ -243,7 +243,7 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(expDir);
-		expect(ctx.isFork).toBe(true);
+		expect(ctx.isClone).toBe(true);
 
 		const result = resolveCloneSource(
 			null,
@@ -257,8 +257,8 @@ describe("experiment context auto-detection", () => {
 		expect(result.cloneSourceLabel).toBe("001-try-redis");
 	});
 
-	test("--from takes priority over auto-detected experiment context", () => {
-		// Set up two experiments
+	test("--from takes priority over auto-detected branch context", () => {
+		// Set up two branches
 		const exp1 = join(tmpBase, "001-try-redis");
 		const exp2 = join(tmpBase, "002-dark-mode");
 		mkdirSync(exp1);
@@ -274,7 +274,7 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(exp1);
-		expect(ctx.isFork).toBe(true);
+		expect(ctx.isClone).toBe(true);
 
 		const result = resolveCloneSource(
 			"2",
@@ -287,9 +287,9 @@ describe("experiment context auto-detection", () => {
 		expect(result.fromExpName).toBe("002-dark-mode");
 	});
 
-	test("when not inside experiment and no --from, clones from project root", () => {
+	test("when not inside branch and no --from, clones from project root", () => {
 		const ctx = detectContext(tmpBase); // no .exp file
-		expect(ctx.isFork).toBe(false);
+		expect(ctx.isClone).toBe(false);
 
 		const result = resolveCloneSource(
 			null,
@@ -315,14 +315,14 @@ describe("experiment context auto-detection", () => {
 		});
 
 		const ctx = detectContext(expDir);
-		expect(ctx.isFork).toBe(true);
-		if (!ctx.isFork) return;
+		expect(ctx.isClone).toBe(true);
+		if (!ctx.isClone) return;
 
 		// The root should come from the .exp metadata source field
 		expect(ctx.originalRoot).toBe("/Users/joel/Code/big-app");
 	});
 
-	test("auto-detected context from subdirectory of experiment", () => {
+	test("auto-detected context from subdirectory of branch", () => {
 		const expDir = join(tmpBase, "001-try-redis");
 		mkdirSync(expDir);
 		writeExpMeta(expDir, {
@@ -337,8 +337,8 @@ describe("experiment context auto-detection", () => {
 		mkdirSync(subDir, { recursive: true });
 
 		const ctx = detectContext(subDir);
-		expect(ctx.isFork).toBe(true);
-		if (!ctx.isFork) return;
+		expect(ctx.isClone).toBe(true);
+		if (!ctx.isClone) return;
 
 		expect(ctx.expDir).toBe(expDir);
 		expect(ctx.expName).toBe("001-try-redis");

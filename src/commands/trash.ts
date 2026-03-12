@@ -17,13 +17,13 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 	const force = flags.includes("--force") || flags.includes("-y");
 	const trashDone = flags.includes("--done");
 
-	// ── Batch trash all done clones ──
+	// ── Batch trash all done branches ──
 	if (trashDone) {
 		await trashAllDone(config, force);
 		return;
 	}
 
-	// ── Self-trash: no args, inside a clone ──
+	// ── Self-trash: no args, inside a branch ──
 	if (!query) {
 		const context = detectContext();
 		if (!context.isClone) {
@@ -33,7 +33,7 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 
 		// Self-trash requires TTY — user should be explicit
 		if (!process.stdin.isTTY) {
-			err("Cannot self-trash without TTY. Use exp trash <id> --force from outside the clone.");
+			err("Cannot self-trash without TTY. Use exp trash <id> --force from outside the branch.");
 			process.exit(1);
 		}
 
@@ -113,7 +113,7 @@ async function trashAllDone(config: ExpConfig, force: boolean) {
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
-		dim("No clones found.");
+		dim("No branches found.");
 		return;
 	}
 
@@ -121,29 +121,31 @@ async function trashAllDone(config: ExpConfig, force: boolean) {
 		.filter((e) => e.isDirectory())
 		.sort((a, b) => a.name.localeCompare(b.name));
 
-	const doneClones = entries.filter((e) => {
+	const doneBranches = entries.filter((e) => {
 		const meta = readMetadata(join(base, e.name));
 		return meta?.status === "done";
 	});
 
-	if (doneClones.length === 0) {
-		dim("No done clones to trash.");
+	if (doneBranches.length === 0) {
+		dim("No done branches to trash.");
 		return;
 	}
 
-	const s = doneClones.length === 1 ? "" : "s";
-	warn(`${doneClones.length} done clone${s} to trash:`);
-	for (const entry of doneClones) {
+	const s = doneBranches.length === 1 ? "" : "es";
+	warn(`${doneBranches.length} done branch${s} to trash:`);
+	for (const entry of doneBranches) {
 		console.log(`  ${c.dim(entry.name)}`);
 	}
 
 	if (!force) {
 		if (!process.stdin.isTTY) {
-			err("Cannot confirm interactively (no TTY). Ask the human to run this command, or get their explicit approval before using --force.");
+			err(
+				"Cannot confirm interactively (no TTY). Ask the human to run this command, or get their explicit approval before using --force.",
+			);
 			process.exit(1);
 		}
 
-		const yes = await confirm({ message: `Trash all ${doneClones.length} done clone${s}?` });
+		const yes = await confirm({ message: `Trash all ${doneBranches.length} done branch${s}?` });
 		if (!yes) {
 			dim("Cancelled.");
 			return;
@@ -152,7 +154,7 @@ async function trashAllDone(config: ExpConfig, force: boolean) {
 
 	const t0 = performance.now();
 	const trashed: string[] = [];
-	for (const entry of doneClones) {
+	for (const entry of doneBranches) {
 		const expDir = join(base, entry.name);
 		rmSync(expDir, { recursive: true, force: true });
 		trashed.push(entry.name);
@@ -162,6 +164,6 @@ async function trashAllDone(config: ExpConfig, force: boolean) {
 	if (config.json) {
 		console.log(JSON.stringify({ trashed, elapsedMs: Math.round(elapsed) }));
 	} else {
-		ok(`Trashed ${trashed.length} done clone${s} in ${fmt(elapsed)}`);
+		ok(`Trashed ${trashed.length} done branch${s} in ${fmt(elapsed)}`);
 	}
 }

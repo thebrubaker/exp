@@ -137,7 +137,7 @@ describe("global scan directory detection", () => {
 		const scanPath = join(TMP, "Code");
 		mkdirSync(scanPath, { recursive: true });
 
-		// Create a project and its experiment directory
+		// Create a project and its branch directory
 		mkdirSync(join(scanPath, "myproject"));
 		const expBase = join(scanPath, ".exp-myproject");
 		mkdirSync(expBase);
@@ -163,29 +163,29 @@ describe("global scan directory detection", () => {
 		expect(expDirs.length).toBe(1);
 		expect(expDirs[0].name).toBe(".exp-myproject");
 
-		// Verify experiments inside
-		const experiments = readdirSync(expBase, { withFileTypes: true }).filter(
+		// Verify branches inside
+		const branches = readdirSync(expBase, { withFileTypes: true }).filter(
 			(e: { isDirectory: () => boolean; name: string }) =>
 				e.isDirectory() && !e.name.startsWith("."),
 		);
-		expect(experiments.length).toBe(1);
-		expect(experiments[0].name).toBe("001-try-redis");
+		expect(branches.length).toBe(1);
+		expect(branches[0].name).toBe("001-try-redis");
 	});
 
-	test("skips .exp-* directories with no experiments", () => {
+	test("skips .exp-* directories with no branches", () => {
 		const scanPath = join(TMP, "Code");
 		mkdirSync(scanPath, { recursive: true });
 
-		// Empty experiment directory
+		// Empty branch directory
 		mkdirSync(join(scanPath, ".exp-empty"));
 
 		const { readdirSync } = require("node:fs");
 		const expBase = join(scanPath, ".exp-empty");
-		const experiments = readdirSync(expBase, { withFileTypes: true }).filter(
+		const branches = readdirSync(expBase, { withFileTypes: true }).filter(
 			(e: { isDirectory: () => boolean; name: string }) =>
 				e.isDirectory() && !e.name.startsWith("."),
 		);
-		expect(experiments.length).toBe(0);
+		expect(branches.length).toBe(0);
 	});
 
 	test("extracts project name from .exp- prefix", () => {
