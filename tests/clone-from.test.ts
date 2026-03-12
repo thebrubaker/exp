@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { seedClaudeMd } from "../src/core/claude.ts";
 import { resolveExp, writeMetadata } from "../src/core/experiment.ts";
 
 const TMP = "/tmp/exp-test-clone-from";
@@ -136,16 +135,3 @@ describe("metadata records correct source", () => {
 	});
 });
 
-describe("CLAUDE.md lineage info", () => {
-	test("includes fork info when fromExp is provided", () => {
-		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002", "001-try-redis");
-		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).toContain("Branched from `001-try-redis`");
-	});
-
-	test("does not include fork info without fromExp", () => {
-		seedClaudeMd(TMP, "try variant", "my-app", "/Users/joel/Code/my-app", "002");
-		const content = readFileSync(join(TMP, "CLAUDE.md"), "utf-8");
-		expect(content).not.toContain("Branched from `");
-	});
-});

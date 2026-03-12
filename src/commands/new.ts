@@ -1,6 +1,5 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
-import { seedClaudeMd } from "../core/claude.ts";
 import { cleanPostClone, cloneProject, fastCloneProject } from "../core/clone.ts";
 import type { CloneStrategy, ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
@@ -148,9 +147,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		number: Number.parseInt(num, 10),
 	});
 
-	spinner.update("Seeding CLAUDE.md...");
-	seedClaudeMd(expDir, description, name, root, num, fromExpName);
-
 	// Add .exp to branch's .gitignore so metadata doesn't get committed
 	spinner.update("Configuring gitignore...");
 	const gitignorePath = `${expDir}/.gitignore`;
@@ -186,10 +182,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			}
 		}
 
-		// Mark CLAUDE.md as assume-unchanged so exp seeding doesn't show in git status
-		if (existsSync(`${expDir}/CLAUDE.md`)) {
-			await exec(["git", "-C", expDir, "update-index", "--assume-unchanged", "CLAUDE.md"]);
-		}
 	}
 
 	let cleanMs = 0;

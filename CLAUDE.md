@@ -29,7 +29,7 @@ ln -sf $(pwd)/dist/exp ~/.local/bin/exp
 src/
 ├── exp.ts              # Entry point (shebang, arg routing)
 ├── commands/           # One file per command
-│   ├── new.ts          # Clone + metadata + seed + auto-branch + cd
+│   ├── new.ts          # Clone + metadata + auto-branch + cd
 │   ├── ls.ts           # List branches (compact/detail, --all for global)
 │   ├── diff.ts         # Git-native diff vs original (--detail for full)
 │   ├── home.ts         # cd to original project (from inside branch)
@@ -47,8 +47,7 @@ src/
 │   ├── project.ts      # Project root detection
 │   ├── experiment.ts   # Branch resolution, numbering, metadata, branch prefix
 │   ├── context.ts      # Detect branch vs project context
-│   ├── clone.ts        # APFS clone with fallback
-│   └── claude.ts       # CLAUDE.md seeding
+│   └── clone.ts        # APFS clone with fallback
 └── utils/              # Shared helpers
     ├── colors.ts       # Chalk colors + output helpers
     ├── shell.ts        # Bun.spawn wrappers (exec, execCheck, execOrThrow)
@@ -68,7 +67,6 @@ commands/                   # (empty — /exp is now a global skill)
 - **Terminal opening:** Ghostty uses `open -na` for new windows; iTerm/Terminal use osascript; tmux uses native commands
 - **Terminal behavior:** Terminal opening is opt-in via `--terminal` flag (or `auto_terminal=true` in config). Default: cd into branch.
 - **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables branch-from-branch and `exp home`
-- **CLAUDE.md seeding:** Prepends between `<!-- exp:start -->` and `<!-- exp:end -->` HTML comment markers
 - **Branch resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
