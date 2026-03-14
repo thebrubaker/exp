@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.9.0 — 2026-03-14
+
+- All commands now work from inside a branch: `diff`, `trash`, `open`, `done`, `status`, `cd` resolve siblings via context detection
+- `exp cd 2` from inside branch 3 navigates to sibling (was "Not found")
+- `exp status` from inside a branch shows the parent project, not the branch itself
+- `exp new --terminal` no longer cd's the original terminal — only the new terminal window changes directory
+- Ghostty terminal opening uses clipboard paste instead of keystroke to prevent character dropping on long paths
+- Branch auto-detect only triggers on `/` (e.g. `feat/my-thing`), not bare hyphens — `exp new "my-thing"` correctly applies `joel/` prefix
+- Remove CLAUDE.md seeding and assume-unchanged flag
+- Rename fork/clone terminology to "branch" across codebase and docs
+- Replace `/side-quest` command with global `/exp` skill
+- Add `exp done` lifecycle flag for branch cleanup
+- Add `exp cp` as alias for raw clonefile copy
+
 ## v0.8.0 — 2026-03-07
 
 - `exp init` now includes clone strategy selection (full/fast)
