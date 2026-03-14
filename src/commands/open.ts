@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { getExpBase, resolveExp } from "../core/experiment.ts";
 import { getProjectRoot } from "../core/project.ts";
 import { err, ok } from "../utils/colors.ts";
@@ -11,7 +12,8 @@ export async function cmdOpen(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 	const expDir = resolveExp(query, base);
 

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { getExpBase, resolveExp } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, err } from "../utils/colors.ts";
@@ -26,7 +27,8 @@ export async function cmdDiff(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 	const expDir = resolveExp(query, base);
 

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { Glob } from "bun";
 import type { ExpConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { getExpBase } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c } from "../utils/colors.ts";
@@ -8,7 +9,8 @@ import { exec } from "../utils/shell.ts";
 import { detectTerminal } from "../utils/terminal.ts";
 
 export async function cmdStatus(config: ExpConfig) {
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 

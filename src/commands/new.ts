@@ -66,8 +66,9 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const description = filteredArgs.join(" ") || "branch";
 
 	// Auto-detect branch name: if description looks like a branch name
-	// (single token, no spaces, contains a slash or hyphen), use it directly
-	if (!branchOverride && filteredArgs.length === 1 && /^[^\s]+[-/][^\s]+$/.test(description)) {
+	// (single token, no spaces, contains a slash), use it directly.
+	// Bare hyphens (e.g. "my-thing") are treated as descriptions, not branch names.
+	if (!branchOverride && filteredArgs.length === 1 && /^[^\s]+\/[^\s]+$/.test(description)) {
 		branchOverride = description;
 	}
 

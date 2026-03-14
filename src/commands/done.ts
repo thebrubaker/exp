@@ -25,7 +25,8 @@ export async function cmdDone(args: string[], config: ExpConfig) {
 	}
 
 	// ── By ID ──
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 	const expDir = resolveExp(query, base);
 

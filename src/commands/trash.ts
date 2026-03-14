@@ -69,7 +69,8 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 	}
 
 	// ── Standard trash by ID ──
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 	const expDir = resolveExp(query, base);
 
@@ -109,7 +110,8 @@ export async function cmdTrash(args: string[], config: ExpConfig) {
 }
 
 async function trashAllDone(config: ExpConfig, force: boolean) {
-	const root = getProjectRoot();
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 
 	if (!existsSync(base)) {
