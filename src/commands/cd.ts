@@ -1,6 +1,7 @@
 import { confirm } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
 import { readRawConfig, writeConfig } from "../core/config.ts";
+import { detectContext } from "../core/context.ts";
 import { getExpBase, resolveExp } from "../core/experiment.ts";
 import { getProjectRoot } from "../core/project.ts";
 import { writeCdTarget } from "../utils/cd-file.ts";
@@ -19,7 +20,9 @@ export async function cmdCd(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	const root = getProjectRoot();
+	// If inside a branch, use the original project root so we can cd to siblings
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
 	const base = getExpBase(root, config);
 	const expDir = resolveExp(query, base);
 
