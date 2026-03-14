@@ -182,7 +182,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 				branchName = null;
 			}
 		}
-
 	}
 
 	let cleanMs = 0;
