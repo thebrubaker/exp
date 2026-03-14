@@ -224,8 +224,12 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 	const totalMs = performance.now() - t0;
 
-	// Tell the shell wrapper to cd into the branch
-	const wrapperActive = writeCdTarget(expDir);
+	// Tell the shell wrapper to cd into the branch (skip when opening a new terminal —
+	// the original terminal should stay put)
+	const wrapperActive = !!process.env.EXP_CD_FILE;
+	if (terminalType === "none") {
+		writeCdTarget(expDir);
+	}
 
 	// Write deferred clone instructions for the shell wrapper
 	if (wrapperActive && deferredPaths.length > 0) {

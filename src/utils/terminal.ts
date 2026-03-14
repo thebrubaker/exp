@@ -21,20 +21,29 @@ export function detectTerminal(override?: string): TerminalType {
 export async function openTerminalAt(dir: string, title: string, terminalType: TerminalType) {
 	switch (terminalType) {
 		case "ghostty": {
-			// Use osascript to open a single new window in the existing Ghostty instance,
-			// then type the cd command. Using `open -na` would launch a new Ghostty instance
+			// Open a new Ghostty window and cd into the target directory.
+			// Uses clipboard paste instead of keystroke to avoid character dropping
+			// on long paths (keystroke sends chars individually, terminal can't keep up).
+			// Using `open -na` was rejected — it launches a new Ghostty instance
 			// which restores all previous windows.
-			const safeDir = dir.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-			const safeTitle = title.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+			const safeDir = dir.replace(/'/g, "'\\''");
+			const safeTitle = title.replace(/'/g, "'\\''");
+			const cmd = `cd '${safeDir}' && clear && echo '${safeTitle}'`;
+			const safeCmd = cmd.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 			await exec([
 				"osascript",
 				"-e",
 				`tell application "Ghostty" to activate
 tell application "System Events"
 	tell process "Ghostty"
+		set windowCount to count of windows
 		click menu item "New Window" of menu "File" of menu bar 1
-		delay 0.5
-		keystroke "cd \\"${safeDir}\\" && clear && echo \\"${safeTitle}\\""
+		repeat while (count of windows) = windowCount
+			delay 0.1
+		end repeat
+		delay 0.3
+		set the clipboard to "${safeCmd}"
+		keystroke "v" using command down
 		key code 36
 	end tell
 end tell`,
