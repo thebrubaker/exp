@@ -80,8 +80,16 @@ export function rewritePaths(line: string, root: string, expDir: string): string
 	return line.replace(root, "[source]").replace(expDir, "[exp]");
 }
 
+async function findDefaultBranch(dir: string): Promise<string> {
+	for (const candidate of ["main", "master"]) {
+		const result = await exec(["git", "-C", dir, "rev-parse", "--verify", candidate]);
+		if (result.success) return candidate;
+	}
+	throw new Error("Could not find default branch (tried main, master)");
+}
+
 async function gitDiff(
-	root: string,
+	_root: string,
 	expDir: string,
 	name: string,
 	expName: string,
@@ -97,6 +105,9 @@ async function gitDiff(
 		? statusResult.stdout.trim().split("\n").length
 		: 0;
 
+	// Find default branch for merge-base
+	const defaultBranch = await findDefaultBranch(expDir);
+
 	// Header
 	console.log();
 	console.log(`  ${c.bold(`Diff: ${c.cyan(name)} ${c.dim("↔")} ${c.magenta(expName)}`)}`);
@@ -110,47 +121,36 @@ async function gitDiff(
 	console.log(branchInfo + uncommittedInfo);
 	console.log();
 
-	// Stat summary via git diff --no-index
-	const statResult = await exec([
-		"git",
-		"diff",
-		"--no-index",
-		"--stat",
-		"--color=always",
-		root,
-		expDir,
-	]);
+	// Git diff against merge-base (three-dot = changes on branch only)
+	const diffRef = `${defaultBranch}...HEAD`;
+	const statResult = await exec(["git", "-C", expDir, "diff", diffRef, "--stat", "--color=always"]);
 
-	// git diff --no-index exits 1 when there are differences — that's normal
 	const statOutput = statResult.stdout || statResult.stderr;
 
-	if (!statOutput.trim()) {
+	if (!statOutput.trim() && uncommitted === 0) {
 		dim("  No differences found.");
 		console.log();
 		return;
 	}
 
-	// Filter and display stat lines
-	const statLines = statOutput.trim().split("\n");
-	const filtered = filterExcludedLines(statLines, DIFF_EXCLUDES);
-
-	for (const line of filtered) {
-		const display = rewritePaths(line, root, expDir);
-		console.log(`  ${display}`);
+	if (statOutput.trim()) {
+		for (const line of statOutput.trim().split("\n")) {
+			console.log(`  ${line}`);
+		}
+	} else {
+		dim("  No committed changes.");
 	}
 
 	console.log();
 
 	// Full diff if verbose
 	if (config.verbose) {
-		const fullResult = await exec(["git", "diff", "--no-index", "--color=always", root, expDir]);
+		const fullResult = await exec(["git", "-C", expDir, "diff", diffRef, "--color=always"]);
 
 		const fullOutput = fullResult.stdout || fullResult.stderr;
 		if (fullOutput.trim()) {
-			const fullLines = fullOutput.trim().split("\n");
-			const filteredFull = filterExcludedLines(fullLines, DIFF_EXCLUDES);
-			for (const line of filteredFull) {
-				console.log(rewritePaths(line, root, expDir));
+			for (const line of fullOutput.trim().split("\n")) {
+				console.log(line);
 			}
 			console.log();
 		}
