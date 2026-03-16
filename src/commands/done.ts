@@ -48,7 +48,7 @@ function toggleDone(expDir: string, expName: string, undo: boolean, config: ExpC
 
 	if (undo) {
 		meta.status = "active";
-		delete meta.doneAt;
+		meta.doneAt = undefined;
 		writeMetadata(expDir, meta);
 
 		if (config.json) {
