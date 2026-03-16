@@ -80,46 +80,49 @@ describe("rewritePaths", () => {
 });
 
 describe("git diff integration", () => {
-	const sourceDir = join(TMP, "source");
 	const expDir = join(TMP, "001-test-exp");
 
 	beforeEach(async () => {
-		// Set up source as a git repo
-		mkdirSync(join(sourceDir, "src"), { recursive: true });
-		writeFileSync(join(sourceDir, "src", "index.ts"), 'console.log("hello");\n');
-		writeFileSync(join(sourceDir, "README.md"), "# Project\n");
-		await exec(["git", "init"], { cwd: sourceDir });
-		await exec(["git", "add", "."], { cwd: sourceDir });
+		// Set up a git repo with an initial commit on main, then branch and make changes
+		mkdirSync(join(expDir, "src"), { recursive: true });
+		writeFileSync(join(expDir, "src", "index.ts"), 'console.log("hello");\n');
+		writeFileSync(join(expDir, "README.md"), "# Project\n");
+		await exec(["git", "init", "-b", "main"], { cwd: expDir });
+		await exec(["git", "add", "."], { cwd: expDir });
 		await exec(
 			["git", "-c", "user.name=Test", "-c", "user.email=t@t.com", "commit", "-m", "init"],
-			{
-				cwd: sourceDir,
-			},
+			{ cwd: expDir },
 		);
 
-		// Set up experiment as a git repo with changes
-		mkdirSync(join(expDir, "src"), { recursive: true });
-		writeFileSync(join(expDir, "src", "index.ts"), 'console.log("hello world");\n');
-		writeFileSync(join(expDir, "README.md"), "# Project\n");
-		writeFileSync(join(expDir, "src", "config.ts"), "export const PORT = 3000;\n");
-		await exec(["git", "init"], { cwd: expDir });
+		// Branch and make changes (simulates what exp new does)
 		await exec(["git", "checkout", "-b", "exp/test-feature"], { cwd: expDir });
+		writeFileSync(join(expDir, "src", "index.ts"), 'console.log("hello world");\n');
+		writeFileSync(join(expDir, "src", "config.ts"), "export const PORT = 3000;\n");
 		await exec(["git", "add", "."], { cwd: expDir });
 		await exec(
 			["git", "-c", "user.name=Test", "-c", "user.email=t@t.com", "commit", "-m", "changes"],
-			{
-				cwd: expDir,
-			},
+			{ cwd: expDir },
 		);
 	});
 
-	test("git diff --no-index detects file differences", async () => {
-		const result = await exec(["git", "diff", "--no-index", "--stat", sourceDir, expDir]);
+	test("git diff main...HEAD detects branch changes", async () => {
+		const result = await exec(["git", "-C", expDir, "diff", "main...HEAD", "--stat"]);
 
-		// Should have output (exit code 1 means differences found)
 		const output = result.stdout || result.stderr;
 		expect(output).toContain("index.ts");
 		expect(output).toContain("config.ts");
+	});
+
+	test("git diff main...HEAD ignores untracked files naturally", async () => {
+		// Add untracked noise (like .vite/deps) — git diff won't see it
+		mkdirSync(join(expDir, ".vite", "deps"), { recursive: true });
+		writeFileSync(join(expDir, ".vite", "deps", "chunk.js"), "// noise\n");
+
+		const result = await exec(["git", "-C", expDir, "diff", "main...HEAD", "--stat"]);
+
+		const output = result.stdout || result.stderr;
+		expect(output).not.toContain(".vite");
+		expect(output).not.toContain("chunk.js");
 	});
 
 	test("git branch --show-current reports experiment branch", async () => {
@@ -128,29 +131,11 @@ describe("git diff integration", () => {
 	});
 
 	test("git status --porcelain counts uncommitted changes", async () => {
-		// Add an uncommitted change
 		writeFileSync(join(expDir, "src", "new-file.ts"), "// new\n");
 
 		const result = await exec(["git", "-C", expDir, "status", "--porcelain"]);
 		const lines = result.stdout.trim().split("\n").filter(Boolean);
 		expect(lines.length).toBe(1);
-	});
-
-	test("git diff --no-index with filtering removes noise", async () => {
-		// Add node_modules noise to experiment
-		mkdirSync(join(expDir, "node_modules", "pkg"), { recursive: true });
-		writeFileSync(join(expDir, "node_modules", "pkg", "index.js"), "module.exports = {};\n");
-
-		const result = await exec(["git", "diff", "--no-index", "--stat", sourceDir, expDir]);
-
-		const output = result.stdout || result.stderr;
-		const lines = output.trim().split("\n");
-		const filtered = filterExcludedLines(lines, ["node_modules", ".git", ".next"]);
-
-		// Filtered output should not contain node_modules
-		for (const line of filtered) {
-			expect(line).not.toContain("node_modules");
-		}
 	});
 });
 
