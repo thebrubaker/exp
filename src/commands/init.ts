@@ -14,6 +14,7 @@ import type { TerminalType } from "../utils/terminal.ts";
 import { detectTerminal } from "../utils/terminal.ts";
 
 const TERMINAL_LABELS: Record<TerminalType, string> = {
+	cmux: "cmux",
 	ghostty: "Ghostty",
 	iterm: "iTerm",
 	warp: "Warp",

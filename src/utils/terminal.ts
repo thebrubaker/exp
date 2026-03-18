@@ -1,6 +1,6 @@
 import { exec } from "./shell.ts";
 
-export type TerminalType = "ghostty" | "iterm" | "warp" | "tmux" | "terminal" | "none";
+export type TerminalType = "cmux" | "ghostty" | "iterm" | "warp" | "tmux" | "terminal" | "none";
 
 export function detectTerminal(override?: string): TerminalType {
 	if (override && override !== "auto") {
@@ -9,6 +9,7 @@ export function detectTerminal(override?: string): TerminalType {
 
 	const env = process.env;
 
+	if (env.CMUX_WORKSPACE_ID) return "cmux";
 	if (env.TERM_PROGRAM === "ghostty") return "ghostty";
 	if (env.ITERM_SESSION_ID) return "iterm";
 	if (env.TERM_PROGRAM === "WarpTerminal" || env.WARP_TERMINAL) return "warp";
@@ -20,6 +21,11 @@ export function detectTerminal(override?: string): TerminalType {
 
 export async function openTerminalAt(dir: string, title: string, terminalType: TerminalType) {
 	switch (terminalType) {
+		case "cmux": {
+			await exec(["cmux", "new-workspace", "--cwd", dir]);
+			break;
+		}
+
 		case "ghostty": {
 			// Open a new Ghostty window and cd into the target directory.
 			// Uses clipboard paste instead of keystroke to avoid character dropping
