@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseTargets } from "../src/commands/trash.ts";
+import { parseTargets } from "../src/utils/targets.ts";
 
 describe("parseTargets", () => {
 	test("single number", () => {
