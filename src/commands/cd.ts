@@ -93,7 +93,7 @@ async function selectBranch(base: string, root: string): Promise<string | null> 
 
 	const entries = readdirSync(base, { withFileTypes: true })
 		.filter((e) => e.isDirectory())
-		.sort((a, b) => a.name.localeCompare(b.name));
+		.sort((a, b) => b.name.localeCompare(a.name));
 
 	if (entries.length === 0) {
 		const name = getProjectName(root);
