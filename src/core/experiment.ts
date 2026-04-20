@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { exec } from "../utils/shell.ts";
 import type { ExpConfig } from "./config.ts";
@@ -31,6 +31,17 @@ export function ensureExpBase(projectRoot: string, config: ExpConfig): string {
 	return base;
 }
 
+/**
+ * List branch directories under base, skipping dot-prefixed entries
+ * (e.g. `.trash/` staging dir for deferred rm).
+ */
+export function listBranches(base: string): Dirent[] {
+	if (!existsSync(base)) return [];
+	return readdirSync(base, { withFileTypes: true }).filter(
+		(e) => e.isDirectory() && !e.name.startsWith("."),
+	);
+}
+
 export function slugify(input: string): string {
 	return input
 		.toLowerCase()
@@ -41,13 +52,9 @@ export function slugify(input: string): string {
 }
 
 export function nextNum(base: string): string {
-	if (!existsSync(base)) return "001";
-
-	const entries = readdirSync(base, { withFileTypes: true });
 	let max = 0;
 
-	for (const entry of entries) {
-		if (!entry.isDirectory()) continue;
+	for (const entry of listBranches(base)) {
 		const match = entry.name.match(/^(\d+)-/);
 		if (match) {
 			const n = Number.parseInt(match[1], 10);
@@ -65,8 +72,7 @@ export function resolveExp(query: string, base: string): string | null {
 	const direct = join(base, query);
 	if (existsSync(direct)) return direct;
 
-	const entries = readdirSync(base, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
+	const entries = listBranches(base)
 		.map((e) => e.name)
 		.sort();
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.10.0 — 2026-04-20
+
+- `exp trash` is now ~instant for any size branch via rename-and-defer: stages targets to `<base>/.trash/<uuid>` (atomic `mv` on same APFS volume) and hands the actual `rm -rf` to the shell wrapper to run disowned in the background. 10-branch `exp trash --done` drops from ~158s to ~50ms perceived.
+- Multi-target staging is parallelized via `Promise.all`
+- `.trash/` orphans (e.g. from a crashed background rm) are swept opportunistically on every `exp trash` invocation
+- New `rm:<path>` directive in the EXP_CD_FILE protocol; shell wrappers (zsh/bash/fish) updated. Re-run `exp init` or refresh `eval "$(exp shell-init)"` to pick up the new wrapper.
+- Without the shell wrapper, trash falls back to foreground `rmSync` (same speed as before — wrapper users get the speedup)
+- `exp trash --json` now includes a `deferred: true|false` flag so callers know whether `elapsedMs` reflects rename-only or full deletion
+- New `listBranches(base)` helper centralizes branch enumeration and skips dot-prefixed entries (so `.trash/` is invisible to `ls`, `nuke`, `cd`, `status`, etc.)
+
 ## v0.9.0 — 2026-03-14
 
 - All commands now work from inside a branch: `diff`, `trash`, `open`, `done`, `status`, `cd` resolve siblings via context detection

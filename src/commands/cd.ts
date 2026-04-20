@@ -1,9 +1,9 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { confirm, select } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
 import { readRawConfig, writeConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
-import { getExpBase, readMetadata, resolveExp } from "../core/experiment.ts";
+import { getExpBase, listBranches, readMetadata, resolveExp } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { writeCdTarget } from "../utils/cd-file.ts";
 import { c, dim, err, ok } from "../utils/colors.ts";
@@ -91,9 +91,7 @@ async function selectBranch(base: string, root: string): Promise<string | null> 
 		return null;
 	}
 
-	const entries = readdirSync(base, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
-		.sort((a, b) => b.name.localeCompare(a.name));
+	const entries = listBranches(base).sort((a, b) => b.name.localeCompare(a.name));
 
 	if (entries.length === 0) {
 		const name = getProjectName(root);

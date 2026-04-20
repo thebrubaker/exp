@@ -23,3 +23,19 @@ export function writeDeferredClone(src: string, dst: string): boolean {
 	appendFileSync(cdFile, `defer:${src}:${dst}\n`, "utf-8");
 	return true;
 }
+
+/**
+ * Append a deferred remove instruction to EXP_CD_FILE.
+ * The shell wrapper will spawn `rm -rf path` in the background (disowned).
+ */
+export function writeDeferredRm(path: string): boolean {
+	const cdFile = process.env.EXP_CD_FILE;
+	if (!cdFile) return false;
+
+	appendFileSync(cdFile, `rm:${path}\n`, "utf-8");
+	return true;
+}
+
+export function isWrapperActive(): boolean {
+	return !!process.env.EXP_CD_FILE;
+}

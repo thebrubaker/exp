@@ -23,6 +23,11 @@ exp() {
           /bin/cp -cR "$src" "$dst" &>/dev/null &
           disown 2>/dev/null
           ;;
+        rm:*)
+          local rmpath="\${line#rm:}"
+          /bin/rm -rf "$rmpath" &>/dev/null &
+          disown 2>/dev/null
+          ;;
         *)
           # Backwards compat: bare path = cd target
           if [[ -n "$line" && "$line" != "$PWD" ]]; then
@@ -60,6 +65,11 @@ exp() {
           /bin/cp -cR "$src" "$dst" &>/dev/null &
           disown 2>/dev/null
           ;;
+        rm:*)
+          local rmpath="\${line#rm:}"
+          /bin/rm -rf "$rmpath" &>/dev/null &
+          disown 2>/dev/null
+          ;;
         *)
           if [[ -n "$line" && "$line" != "$PWD" ]]; then
             builtin cd "$line" || true
@@ -91,6 +101,10 @@ function exp
           set -l src (string split ':' $payload)[1]
           set -l dst (string split ':' $payload)[2]
           fish -c "/bin/cp -cR $src $dst" &
+          disown 2>/dev/null
+        case 'rm:*'
+          set -l rmpath (string replace 'rm:' '' $line)
+          fish -c "/bin/rm -rf '$rmpath'" &
           disown 2>/dev/null
         case '*'
           if test -n "$line" -a "$line" != "$PWD"

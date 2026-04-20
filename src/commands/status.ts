@@ -1,8 +1,8 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { Glob } from "bun";
 import type { ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
-import { getExpBase } from "../core/experiment.ts";
+import { getExpBase, listBranches } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
@@ -14,9 +14,7 @@ export async function cmdStatus(config: ExpConfig) {
 	const name = getProjectName(root);
 	const base = getExpBase(root, config);
 
-	const branchCount = existsSync(base)
-		? readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory()).length
-		: 0;
+	const branchCount = listBranches(base).length;
 
 	const terminal = detectTerminal(config.terminal);
 

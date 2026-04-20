@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ExpConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
 import { getDivergedSize, getFileDivergence, getGitStatus } from "../core/divergence.ts";
-import { getExpBase, readMetadata, slugify } from "../core/experiment.ts";
+import { getExpBase, listBranches, readMetadata, slugify } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
@@ -62,9 +62,7 @@ export async function cmdLs(args: string[], config: ExpConfig) {
 		return;
 	}
 
-	const entries = readdirSync(base, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
-		.sort((a, b) => a.name.localeCompare(b.name));
+	const entries = listBranches(base).sort((a, b) => a.name.localeCompare(b.name));
 
 	if (entries.length === 0) {
 		dim(`No branches for ${name}. Run: exp new "my idea"`);
@@ -327,9 +325,7 @@ async function printGlobal(_detail: boolean, config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const branches = readdirSync(base, { withFileTypes: true })
-				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
-				.sort((a, b) => a.name.localeCompare(b.name));
+			const branches = listBranches(base).sort((a, b) => a.name.localeCompare(b.name));
 
 			if (branches.length === 0) continue;
 
@@ -391,9 +387,7 @@ async function printJson(config: ExpConfig) {
 		return;
 	}
 
-	const entries = readdirSync(base, { withFileTypes: true })
-		.filter((e) => e.isDirectory())
-		.sort((a, b) => a.name.localeCompare(b.name));
+	const entries = listBranches(base).sort((a, b) => a.name.localeCompare(b.name));
 
 	const branches = entries.map((entry) => {
 		const expDir = `${base}/${entry.name}`;
@@ -439,8 +433,7 @@ async function printJsonGlobal(config: ExpConfig) {
 			const projectName = entry.name.replace(/^\.exp-/, "");
 			const base = join(scanPath, entry.name);
 
-			const branches = readdirSync(base, { withFileTypes: true })
-				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+			const branches = listBranches(base)
 				.sort((a, b) => a.name.localeCompare(b.name))
 				.map((e) => {
 					const expDir = join(base, e.name);

@@ -1,7 +1,7 @@
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { input } from "@inquirer/prompts";
 import type { ExpConfig } from "../core/config.ts";
-import { getExpBase } from "../core/experiment.ts";
+import { getExpBase, listBranches } from "../core/experiment.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { c, dim, err, ok, warn } from "../utils/colors.ts";
 import { exec } from "../utils/shell.ts";
@@ -22,7 +22,7 @@ export async function cmdNuke(_args: string[], config: ExpConfig) {
 		process.exit(1);
 	}
 
-	const entries = readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory());
+	const entries = listBranches(base);
 	const sizeResult = await exec(["du", "-sh", base]);
 	const size = sizeResult.success ? sizeResult.stdout.split("\t")[0] : "?";
 
