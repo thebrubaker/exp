@@ -76,7 +76,7 @@ describe("claudeMemoryDir / claudeProjectDir", () => {
 describe("bridgeMemory", () => {
 	test("creates a symlink from branch memory to parent memory", () => {
 		const result = bridgeMemory(BRANCH_FAKE, PARENT_FAKE);
-		expect(result).toBe("linked");
+		expect(result.status).toBe("linked");
 
 		const branchMem = claudeMemoryDir(BRANCH_FAKE);
 		const parentMem = claudeMemoryDir(PARENT_FAKE);
@@ -94,17 +94,18 @@ describe("bridgeMemory", () => {
 	});
 
 	test("returns 'exists' when correct symlink already in place (idempotent)", () => {
-		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE)).toBe("linked");
-		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE)).toBe("exists");
+		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE).status).toBe("linked");
+		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE).status).toBe("exists");
 	});
 
-	test("returns 'skipped' when branch memory is a real dir with content", () => {
+	test("returns 'skipped' with reason when branch memory has content", () => {
 		const branchMem = claudeMemoryDir(BRANCH_FAKE);
 		mkdirSync(branchMem, { recursive: true });
 		writeFileSync(join(branchMem, "orphan.md"), "I'm already here");
 
 		const result = bridgeMemory(BRANCH_FAKE, PARENT_FAKE);
-		expect(result).toBe("skipped");
+		expect(result.status).toBe("skipped");
+		expect(result.reason).toMatch(/already has/);
 
 		// The file should still be there — untouched
 		expect(existsSync(join(branchMem, "orphan.md"))).toBe(true);
@@ -116,11 +117,11 @@ describe("bridgeMemory", () => {
 		mkdirSync(branchMem, { recursive: true });
 
 		const result = bridgeMemory(BRANCH_FAKE, PARENT_FAKE);
-		expect(result).toBe("linked");
+		expect(result.status).toBe("linked");
 		expect(lstatSync(branchMem).isSymbolicLink()).toBe(true);
 	});
 
-	test("returns 'skipped' when branch memory is a symlink to the wrong place", () => {
+	test("returns 'skipped' with reason when branch memory is a symlink elsewhere", () => {
 		const branchMem = claudeMemoryDir(BRANCH_FAKE);
 		const branchProj = claudeProjectDir(BRANCH_FAKE);
 		mkdirSync(branchProj, { recursive: true });
@@ -129,7 +130,26 @@ describe("bridgeMemory", () => {
 		symlinkSync(ELSEWHERE, branchMem);
 
 		const result = bridgeMemory(BRANCH_FAKE, PARENT_FAKE);
-		expect(result).toBe("skipped");
+		expect(result.status).toBe("skipped");
+		expect(result.reason).toMatch(/symlinked elsewhere/);
 		expect(readlinkSync(branchMem)).toBe(ELSEWHERE); // unchanged
+	});
+
+	test("never throws — returns 'error' on unexpected filesystem failure", () => {
+		// Put a regular file where the branch's project dir should be. The
+		// bridge will try to create a symlink "inside" that file and the
+		// kernel returns ENOTDIR. We expect a structured "error" result
+		// rather than an exception bubbling up to the caller.
+		const branchProj = claudeProjectDir(BRANCH_FAKE);
+		const parentOfBranchProj = join(homedir(), ".claude", "projects");
+		mkdirSync(parentOfBranchProj, { recursive: true });
+		writeFileSync(branchProj, "i am a file, not a directory");
+
+		const result = bridgeMemory(BRANCH_FAKE, PARENT_FAKE);
+		expect(result.status).toBe("error");
+		expect(typeof result.reason).toBe("string");
+		expect(result.reason!.length).toBeGreaterThan(0);
+
+		// Clean up the stray file (cleanup() uses rmSync recursive force which handles this)
 	});
 });

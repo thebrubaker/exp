@@ -11,7 +11,7 @@ import {
 	slugify,
 	writeMetadata,
 } from "../core/experiment.ts";
-import { bridgeMemory } from "../core/memory-bridge.ts";
+import { type BridgeStatus, bridgeMemory } from "../core/memory-bridge.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { writeCdTarget, writeDeferredClone } from "../utils/cd-file.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
@@ -153,13 +153,17 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	// written inside this branch's Claude sessions lands in the parent's
 	// memory dir instead of being orphaned under the branch's own slug
 	// (which dies when the branch is trashed). See core/memory-bridge.ts.
-	let memoryBridgeStatus: "linked" | "exists" | "skipped" | "off" = "off";
+	//
+	// The bridge never throws: any failure (permission, slug-rule drift,
+	// pre-existing content) produces a warning, not an exception. Branch
+	// creation always succeeds even if the bridge can't be set up.
+	let memoryBridgeStatus: BridgeStatus | "off" = "off";
+	let memoryBridgeReason: string | undefined;
 	if (config.memoryBridge) {
 		spinner.update("Bridging Claude memory...");
-		memoryBridgeStatus = bridgeMemory(expDir, root);
-		if (memoryBridgeStatus === "skipped" && verbose) {
-			warn("Memory dir for this branch slug already exists with content — left untouched");
-		}
+		const result = bridgeMemory(expDir, root);
+		memoryBridgeStatus = result.status;
+		memoryBridgeReason = result.reason;
 	}
 
 	// Add .exp to branch's .gitignore so metadata doesn't get committed
@@ -307,6 +311,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		if (memoryBridgeStatus === "linked") {
 			dim("  Claude memory bridged to parent project");
+		} else if (memoryBridgeStatus === "skipped" || memoryBridgeStatus === "error") {
+			warn(
+				`Memory bridge ${memoryBridgeStatus}${memoryBridgeReason ? `: ${memoryBridgeReason}` : ""} — branch works, but Claude memory written here won't flow to the parent project`,
+			);
 		}
 
 		const hasNextConfig =
@@ -338,6 +346,12 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 
 		if (deferredPaths.length > 0) {
 			warn(`${config.deferDirs.join(", ")} copying in background`);
+		}
+
+		if (memoryBridgeStatus === "skipped" || memoryBridgeStatus === "error") {
+			warn(
+				`Memory bridge ${memoryBridgeStatus}${memoryBridgeReason ? `: ${memoryBridgeReason}` : ""}`,
+			);
 		}
 
 		if (terminalType === "none" && !wrapperActive) {

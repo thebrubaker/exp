@@ -5,7 +5,8 @@
 - Memory bridge: `exp new` symlinks `~/.claude/projects/<branch-slug>/memory` to the parent project's memory dir, so Claude auto-memory written inside a branch lands in the parent's bucket — no more orphaned entries when branches are trashed. (Originally shaped to use `autoMemoryDirectory` in `.claude/settings.local.json`, but verified empirically that Claude only honors that setting from user-level `~/.claude/settings.json` by design — symlink works below Claude's awareness.)
 - New config key: `memory_bridge` (default `true`) / `EXP_MEMORY_BRIDGE` env var to disable
 - New module: `core/memory-bridge.ts` exporting `claudeProjectSlug`, `claudeProjectDir`, `claudeMemoryDir`, `bridgeMemory`
-- JSON output of `exp new` includes `memoryBridge: "linked" | "exists" | "skipped" | "off"`
+- JSON output of `exp new` includes `memoryBridge: "linked" | "exists" | "skipped" | "off" | "error"`
+- Memory bridge fails gracefully: any filesystem error (permission, slug-rule drift, etc.) produces a warning and the branch is still created. `bridgeMemory` returns `{ status, reason? }` and never throws — `exp new` always succeeds even if the bridge can't be set up.
 
 ## v0.10.0 — 2026-04-20
 
