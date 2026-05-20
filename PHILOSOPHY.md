@@ -36,6 +36,14 @@ Build (small). Clean TypeScript/Bun rewrite of a proven 473-line bash prototype.
 - osascript terminal opening is untestable — extracted as strategy, detection tested
 - CLAUDE.md `@import` conflicts with prepend — match bash behavior, revisit later
 
+## Failure mode
+
+The bar isn't "works on the happy path" — it's "when something goes sideways, the user is still operational."
+
+`exp` is run dozens of times a day, often before someone's about to start something else. When a feature can't fully succeed — a syscall errors, a downstream convention drifts, a filesystem state we didn't anticipate — the primary action (creating the branch, listing it, navigating to it) should still succeed, accompanied by a visible warning that names what didn't work and why. Silent failure is worse than no feature. Hard failure on a non-essential side-effect is worse than degraded behavior with an explanation.
+
+Graceful degradation is in-scope of every feature, not a follow-up. Every new feature should answer: what happens when this fails, and is the user still operational?
+
 ## Quality Bar
 
 Every behavior in the bash spec works identically. Tests cover all non-platform-specific logic (ID resolution, slugification, numbering, metadata, CLAUDE.md manipulation). Binary installs to PATH.
