@@ -11,6 +11,7 @@ import {
 	slugify,
 	writeMetadata,
 } from "../core/experiment.ts";
+import { bridgeMemory } from "../core/memory-bridge.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { writeCdTarget, writeDeferredClone } from "../utils/cd-file.ts";
 import { c, dim, info, ok, warn } from "../utils/colors.ts";
@@ -148,6 +149,19 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		number: Number.parseInt(num, 10),
 	});
 
+	// Bridge Claude Code's auto-memory back to the parent project. Memory
+	// written inside this branch's Claude sessions lands in the parent's
+	// memory dir instead of being orphaned under the branch's own slug
+	// (which dies when the branch is trashed). See core/memory-bridge.ts.
+	let memoryBridgeStatus: "linked" | "exists" | "skipped" | "off" = "off";
+	if (config.memoryBridge) {
+		spinner.update("Bridging Claude memory...");
+		memoryBridgeStatus = bridgeMemory(expDir, root);
+		if (memoryBridgeStatus === "skipped" && verbose) {
+			warn("Memory dir for this branch slug already exists with content — left untouched");
+		}
+	}
+
 	// Add .exp to branch's .gitignore so metadata doesn't get committed
 	spinner.update("Configuring gitignore...");
 	const gitignorePath = `${expDir}/.gitignore`;
@@ -254,6 +268,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 				method,
 				strategy,
 				deferredPaths: deferredPaths.length > 0 ? deferredPaths : undefined,
+				memoryBridge: memoryBridgeStatus,
 				terminal: terminalType,
 				description,
 				from: fromExpName ?? null,
@@ -288,6 +303,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 			warn(
 				`${config.deferDirs.join(", ")} copying in background (${deferredPaths.length} locations)`,
 			);
+		}
+
+		if (memoryBridgeStatus === "linked") {
+			dim("  Claude memory bridged to parent project");
 		}
 
 		const hasNextConfig =

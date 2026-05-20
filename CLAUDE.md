@@ -47,6 +47,7 @@ src/
 │   ├── project.ts      # Project root detection
 │   ├── experiment.ts   # Branch resolution, numbering, metadata, branch prefix
 │   ├── context.ts      # Detect branch vs project context
+│   ├── memory-bridge.ts # Bridge Claude auto-memory to parent project
 │   └── clone.ts        # APFS clone with fallback
 └── utils/              # Shared helpers
     ├── colors.ts       # Chalk colors + output helpers
@@ -70,6 +71,7 @@ commands/                   # (empty — /exp is now a global skill)
 - **Branch resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
+- **Memory bridge:** On `exp new`, symlinks `~/.claude/projects/<branch-slug>/memory` to the parent project's `~/.claude/projects/<parent-slug>/memory`. Solves orphaned-memory: Claude Code's worktree memory-sharing relies on `git rev-parse --git-common-dir`, but exp branches are self-contained clones so it returns their own `.git` and each branch gets a separate memory bucket — entries get orphaned when the branch is trashed. Symlink works below Claude's awareness: Claude resolves its memory dir from cwd as usual, writes "to its own slug", and the bytes land at the parent via the symlink. Tried setting `autoMemoryDirectory` in `.claude/settings.local.json` first — verified empirically that Claude only honors that key from user-level `~/.claude/settings.json` by design (security). Slug rule (replicates Claude's): replace `/` and `.` with `-`. Disable via `memory_bridge=false`. The branch's own session jsonl files still land under the branch slug — only memory is bridged.
 
 - **Confirmations:** Interactive prompts via `@inquirer/prompts` (trash, nuke)
 - **Clone strategy:** `clone_strategy=fast` in config or `--strategy fast` flag. Root-scans the source, clonefiles everything except `defer_dirs` (default: `node_modules`), returns in ~577ms. The shell wrapper then spawns `cp -cR` in the background for deferred dirs — user gets their prompt immediately, `node_modules` appears seconds later. Symlink strategy was tried first but Turbopack rejects symlinks pointing outside the project root.

@@ -15,6 +15,7 @@ export interface ExpConfig {
 	json: boolean;
 	cloneStrategy: CloneStrategy;
 	deferDirs: string[];
+	memoryBridge: boolean;
 }
 
 const DEFAULT_CLEAN = [".next", ".turbo"];
@@ -47,6 +48,11 @@ export function loadConfig(): ExpConfig {
 			? file.defer_dirs.split(" ").filter(Boolean)
 			: DEFAULT_DEFER_DIRS;
 
+	// memory_bridge defaults to true. Disable via `memory_bridge=false` or
+	// EXP_MEMORY_BRIDGE=false to skip writing .claude/settings.local.json.
+	const memoryBridgeRaw = env.EXP_MEMORY_BRIDGE ?? file.memory_bridge ?? "true";
+	const memoryBridge = memoryBridgeRaw !== "false";
+
 	return {
 		root: env.EXP_ROOT || file.root || null,
 		terminal: (env.EXP_TERMINAL || file.terminal || "auto") as TerminalType | "auto",
@@ -58,6 +64,7 @@ export function loadConfig(): ExpConfig {
 		json: false,
 		cloneStrategy,
 		deferDirs,
+		memoryBridge,
 	};
 }
 
