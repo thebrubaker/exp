@@ -1,4 +1,4 @@
-# exp - the missing primitive for orchestrating parallel AI agents.
+# exp - a lightweight primitive for agent branches / quick clones
 
 Instant project branching via macOS APFS clonefile -- git worktrees but dumber and faster.
 
