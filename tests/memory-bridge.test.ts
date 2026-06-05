@@ -15,6 +15,7 @@ import {
 	claudeMemoryDir,
 	claudeProjectDir,
 	claudeProjectSlug,
+	healBridge,
 } from "../src/core/memory-bridge.ts";
 
 // Tests use the real ~/.claude/projects/ dir with unique test-scoped slugs.
@@ -151,5 +152,73 @@ describe("bridgeMemory", () => {
 		expect(result.reason!.length).toBeGreaterThan(0);
 
 		// Clean up the stray file (cleanup() uses rmSync recursive force which handles this)
+	});
+});
+
+describe("healBridge", () => {
+	test("recreates the target when the bridge symlink is dangling", () => {
+		// Set the bridge up, then prune the parent's bucket out from under it
+		// — the exact scenario where Claude's writes would hard-fail (ENOENT).
+		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE).status).toBe("linked");
+		const parentMem = claudeMemoryDir(PARENT_FAKE);
+		rmSync(claudeProjectDir(PARENT_FAKE), { recursive: true, force: true });
+		expect(existsSync(parentMem)).toBe(false);
+
+		const result = healBridge(BRANCH_FAKE);
+		expect(result.status).toBe("healed");
+		expect(result.target).toBe(parentMem);
+		expect(existsSync(parentMem)).toBe(true);
+
+		// The symlink itself is untouched — still points where it did
+		const branchMem = claudeMemoryDir(BRANCH_FAKE);
+		expect(lstatSync(branchMem).isSymbolicLink()).toBe(true);
+		expect(readlinkSync(branchMem)).toBe(parentMem);
+	});
+
+	test("is a no-op when the symlink target already exists", () => {
+		expect(bridgeMemory(BRANCH_FAKE, PARENT_FAKE).status).toBe("linked");
+		expect(healBridge(BRANCH_FAKE).status).toBe("ok");
+	});
+
+	test("heals at the link's real destination when redirected elsewhere", () => {
+		// A link pointing somewhere other than the computed parent should
+		// still be repaired at wherever it actually points.
+		const branchMem = claudeMemoryDir(BRANCH_FAKE);
+		mkdirSync(claudeProjectDir(BRANCH_FAKE), { recursive: true });
+		const elsewhereMem = join(ELSEWHERE, "memory");
+		symlinkSync(elsewhereMem, branchMem);
+		expect(existsSync(elsewhereMem)).toBe(false);
+
+		const result = healBridge(BRANCH_FAKE);
+		expect(result.status).toBe("healed");
+		expect(result.target).toBe(elsewhereMem);
+		expect(existsSync(elsewhereMem)).toBe(true);
+	});
+
+	test("returns 'absent' when the branch memory is a real dir (not bridged)", () => {
+		const branchMem = claudeMemoryDir(BRANCH_FAKE);
+		mkdirSync(branchMem, { recursive: true });
+		expect(healBridge(BRANCH_FAKE).status).toBe("absent");
+	});
+
+	test("returns 'absent' when there is nothing at the branch memory path", () => {
+		expect(healBridge(BRANCH_FAKE).status).toBe("absent");
+	});
+
+	test("never throws — returns 'error' when the target can't be created", () => {
+		// Point the link at a path whose parent is a regular file. mkdir of
+		// the target then fails with ENOTDIR — we expect a structured error,
+		// not an exception.
+		const branchMem = claudeMemoryDir(BRANCH_FAKE);
+		mkdirSync(claudeProjectDir(BRANCH_FAKE), { recursive: true });
+		const blocker = join(`/tmp/${STAMP}`, "blocker");
+		mkdirSync(`/tmp/${STAMP}`, { recursive: true });
+		writeFileSync(blocker, "i am a file, not a directory");
+		symlinkSync(join(blocker, "memory"), branchMem);
+
+		const result = healBridge(BRANCH_FAKE);
+		expect(result.status).toBe("error");
+		expect(typeof result.reason).toBe("string");
+		expect(result.reason!.length).toBeGreaterThan(0);
 	});
 });

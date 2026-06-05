@@ -4,9 +4,10 @@ import type { ExpConfig } from "../core/config.ts";
 import { readRawConfig, writeConfig } from "../core/config.ts";
 import { detectContext } from "../core/context.ts";
 import { getExpBase, listBranches, readMetadata, resolveExp } from "../core/experiment.ts";
+import { healBridge } from "../core/memory-bridge.ts";
 import { getProjectName, getProjectRoot } from "../core/project.ts";
 import { writeCdTarget } from "../utils/cd-file.ts";
-import { c, dim, err, ok } from "../utils/colors.ts";
+import { c, dim, err, ok, warn } from "../utils/colors.ts";
 import {
 	detectShell,
 	getRcFile,
@@ -24,7 +25,7 @@ export async function cmdCd(query: string | undefined, config: ExpConfig) {
 	if (!query) {
 		const expDir = await selectBranch(base, root);
 		if (!expDir) return;
-		cdTo(expDir);
+		cdTo(expDir, config);
 		return;
 	}
 
@@ -35,11 +36,24 @@ export async function cmdCd(query: string | undefined, config: ExpConfig) {
 		process.exit(1);
 	}
 
-	cdTo(expDir);
+	cdTo(expDir, config);
 }
 
 /** Write cd target or print path, offer shell integration if needed */
-function cdTo(expDir: string) {
+function cdTo(expDir: string, config: ExpConfig) {
+	// We're about to enter the branch, where a Claude session may start
+	// writing auto-memory. Repair the bridge symlink if its target was
+	// pruned since the branch was created — a dangling link hard-fails
+	// Claude's writes. Best-effort: never blocks the cd.
+	if (config.memoryBridge) {
+		const heal = healBridge(expDir);
+		if (heal.status === "error") {
+			warn(
+				`Memory bridge heal failed: ${heal.reason} — Claude memory written here may not reach the parent`,
+			);
+		}
+	}
+
 	// If the shell wrapper is active, write to cd-file and stay quiet
 	if (writeCdTarget(expDir)) {
 		return;

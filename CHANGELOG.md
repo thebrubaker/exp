@@ -7,6 +7,7 @@
 - New module: `core/memory-bridge.ts` exporting `claudeProjectSlug`, `claudeProjectDir`, `claudeMemoryDir`, `bridgeMemory`
 - JSON output of `exp new` includes `memoryBridge: "linked" | "exists" | "skipped" | "off" | "error"`
 - Memory bridge fails gracefully: any filesystem error (permission, slug-rule drift, etc.) produces a warning and the branch is still created. `bridgeMemory` returns `{ status, reason? }` and never throws — `exp new` always succeeds even if the bridge can't be set up.
+- Memory bridge self-heals dangling links (DIG-292): if the parent project's Claude bucket is pruned *after* a branch is created, the bridge symlink starts pointing at nothing — and a dangling link hard-fails Claude's memory writes (ENOENT) rather than orphaning them. `exp cd` and `exp open` now recreate the missing target dir before entering the branch (the moment right before a Claude session would start writing). New `healBridge(branchDir)` in `core/memory-bridge.ts` — reads the link's actual target so a redirected link is repaired where it really points, and never throws.
 
 ## v0.10.0 — 2026-04-20
 

@@ -142,6 +142,68 @@ export function bridgeMemory(branchDir: string, originalRoot: string): BridgeRes
 	}
 }
 
+export type HealStatus = "ok" | "healed" | "absent" | "error";
+
+export interface HealResult {
+	status: HealStatus;
+	/** The symlink target — populated for "healed". */
+	target?: string;
+	/** Human-readable reason — populated for "error". */
+	reason?: string;
+}
+
+/**
+ * Heal a branch's memory bridge if its symlink has gone dangling.
+ *
+ * `bridgeMemory` sets up `~/.claude/projects/<branch-slug>/memory` as a
+ * symlink to the parent project's memory dir at `exp new` time, creating
+ * the target if missing. But the parent's Claude bucket can be pruned
+ * *later* (the user cleans `~/.claude/projects/<parent-slug>/`), leaving
+ * the symlink pointing at a path that no longer exists.
+ *
+ * A dangling symlink doesn't orphan a memory write — it *hard-fails* it
+ * with ENOENT, since by write time exp is out of the loop and Claude is
+ * doing the writing. So whenever exp is used to *enter* a branch (`cd`,
+ * `open`) — right before a Claude session would start writing — we
+ * recreate the missing target dir.
+ *
+ * Only acts when the branch memory path is already a symlink (i.e. the
+ * bridge was set up). It never creates the symlink itself — that's
+ * `bridgeMemory`'s job at creation time. It heals whatever the link
+ * actually points at (read from the link, not recomputed from a parent
+ * root), so a link redirected elsewhere is still repaired at its real
+ * destination.
+ *
+ * **Never throws.** A failed heal must not break the caller's primary
+ * action (navigating into the branch).
+ *
+ *   "ok"     — symlink present and its target exists; no-op
+ *   "healed" — symlink was dangling; recreated the target dir
+ *   "absent" — no symlink to heal (not bridged, or bridge disabled)
+ *   "error"  — filesystem error; the caller's primary action is unaffected
+ */
+export function healBridge(branchDir: string): HealResult {
+	try {
+		const branchMem = join(claudeProjectDir(branchDir), "memory");
+
+		let entry: ReturnType<typeof lstatSync> | null = null;
+		try {
+			entry = lstatSync(branchMem);
+		} catch {
+			return { status: "absent" }; // nothing at the path — not bridged
+		}
+		if (!entry.isSymbolicLink()) return { status: "absent" };
+
+		const target = readlinkSync(branchMem);
+		if (existsSync(target)) return { status: "ok" }; // existsSync follows the link's target
+
+		mkdirSync(target, { recursive: true });
+		return { status: "healed", target };
+	} catch (err) {
+		return { status: "error", reason: errMsg(err) };
+	}
+}
+
 function errMsg(err: unknown): string {
 	if (err instanceof Error) return err.message;
 	return String(err);
