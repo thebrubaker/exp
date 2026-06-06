@@ -1,11 +1,3 @@
-<!-- exp:start -->
-## Side quest: trash --shrink flag to reclaim node_modules/build dirs
-
-APFS clone of `exp`. Original untouched at `/Users/joel/Code/exp`.
-Goal: **trash --shrink flag to reclaim node_modules/build dirs**
-Diff: `exp diff 009` | Trash: `exp trash 009`
-<!-- exp:end -->
-
 # CLAUDE.md — exp
 
 Version: v0.12.0
