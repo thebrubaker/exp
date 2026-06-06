@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.11.0 — 2026-06-06
 
+- `exp help` (and bare `exp`) now print the version in the header (`exp vX.Y.Z`) — makes it obvious which build is running, since a dev symlink (`~/.local/bin/exp`) and a Homebrew install can resolve differently across interactive vs non-interactive shells.
 - `exp new` no longer silently forks from the branch you happen to be standing in (DIG-281). The clone source is always the project root unless `--from` is given. Previously, being cwd'd inside a branch made that branch the source via context auto-detection — which combined with auto-cd to corrupt the natural `exp new A && exp new B` pattern: the shell wrapper cd's into A after creating it, so B was forked from A instead of the project. Branch-from-branch is still supported, but now it's opt-in and explicit via `--from <id>`.
 - `exp new` always reports its clone source now (`from:` line in default output, previously only shown in `--verbose`). When run from inside a branch without `--from`, it also prints a hint showing how to branch from the current branch instead — no more silent source resolution (PHILOSOPHY.md "no silent behavior").
 - Memory bridge: `exp new` symlinks `~/.claude/projects/<branch-slug>/memory` to the parent project's memory dir, so Claude auto-memory written inside a branch lands in the parent's bucket — no more orphaned entries when branches are trashed. (Originally shaped to use `autoMemoryDirectory` in `.claude/settings.local.json`, but verified empirically that Claude only honors that setting from user-level `~/.claude/settings.json` by design — symlink works below Claude's awareness.)
