@@ -23,6 +23,26 @@ bun test                   # Run tests
 ln -sf $(pwd)/dist/exp ~/.local/bin/exp
 ```
 
+## Releasing
+
+`exp` exists as two builds that can silently drift apart:
+
+- **Dev build** — `pnpm run build:binary` → `dist/exp`, symlinked at `~/.local/bin/exp`. The day-to-day driver while iterating.
+- **Released build** — the Homebrew tap `digitalpine/homebrew-tap`, what everyone else downloads.
+
+Gotcha worth knowing: if both are installed, **PATH order decides which `exp` runs — and an interactive shell vs. a non-interactive one (CI, cron, an agent's Bash tool that doesn't source your rc files) can resolve to *different* builds.** So a stale release keeps affecting automated callers even when your own terminal happily runs the latest dev build. `exp help` prints the version precisely so you can tell which one you're on.
+
+**The `VERSION` constant is a release trigger, not just a label.** Releasing is fully automated and there is no separate "release skill" — pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which builds both-arch binaries, cuts the GitHub release, and pushes the updated formula to the Homebrew tap. The tag *is* the release.
+
+So bumping `VERSION` in `src/exp.ts` (and dating its CHANGELOG section) **obligates** cutting the matching tag:
+
+```bash
+git tag vX.Y.Z
+git push origin vX.Y.Z   # triggers the release workflow
+```
+
+A version bump without a tag is an unfinished change: the repo claims a version nobody can install. That drift is exactly what left Homebrew stuck on 0.3.2 while the code said 0.10.0 (and skipped tagging v0.5.0 / v0.7.0 / v0.10.0 entirely). If you touch the version, finish the release.
+
 ## Architecture
 
 ```

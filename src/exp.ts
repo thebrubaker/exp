@@ -25,7 +25,7 @@ const VERSION = "0.10.0";
 
 function printHelp() {
 	console.log(`
-  exp — instant project branching via APFS clonefile
+  exp v${VERSION} — instant project branching via APFS clonefile
 
   WORKFLOW
     /export                       <- optional: save Claude session to file
