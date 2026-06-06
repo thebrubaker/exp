@@ -11,6 +11,7 @@ import { isWrapperActive, writeCdTarget, writeDeferredRm } from "../utils/cd-fil
 import { c, dim, err, ok, warn } from "../utils/colors.ts";
 import { fmt } from "../utils/format.ts";
 import { parseTargets } from "../utils/targets.ts";
+import { ageInDays, parseDays } from "../utils/time.ts";
 
 const TRASH_SUBDIR = ".trash";
 
@@ -198,15 +199,212 @@ function reportShrink(
 	);
 }
 
+// ── Age-based selection (--older-than) ──
+
+/**
+ * Extract a value-taking flag from argv, supporting both `--flag value` and
+ * `--flag=value`. The flag and its separate value are removed from `rest` so a
+ * value like `20` in `--older-than 20` never leaks into positional parsing and
+ * gets mistaken for a branch id. `value` is null when the flag is present but
+ * its value is missing (next token is another flag, or end of args).
+ */
+export function extractFlagValue(
+	args: string[],
+	name: string,
+): { found: boolean; value: string | null; rest: string[] } {
+	const rest: string[] = [];
+	let found = false;
+	let value: string | null = null;
+	for (let i = 0; i < args.length; i++) {
+		const a = args[i];
+		if (a === name) {
+			found = true;
+			const next = args[i + 1];
+			if (next !== undefined && !next.startsWith("-")) {
+				value = next;
+				i++; // consume the value token
+			}
+			continue;
+		}
+		if (a.startsWith(`${name}=`)) {
+			found = true;
+			value = a.slice(name.length + 1);
+			continue;
+		}
+		rest.push(a);
+	}
+	return { found, value, rest };
+}
+
+interface AgeFilter {
+	kept: { expDir: string; expName: string }[];
+	/** Branch names whose `created` is missing/unparseable — never swept. */
+	skippedUnknown: string[];
+}
+
+/**
+ * Partition branch dirs into those at least `minDays` old and those whose age
+ * can't be determined. Unknown-age branches are conservatively excluded from
+ * the kept set (a destructive op must not act on data it can't read).
+ */
+export function filterByAge(branchDirs: string[], minDays: number): AgeFilter {
+	const kept: { expDir: string; expName: string }[] = [];
+	const skippedUnknown: string[] = [];
+	for (const dir of branchDirs) {
+		const created = readMetadata(dir)?.created;
+		const age = created ? ageInDays(created) : null;
+		if (age === null) {
+			skippedUnknown.push(basename(dir));
+		} else if (age >= minDays) {
+			kept.push({ expDir: dir, expName: basename(dir) });
+		}
+	}
+	return { kept, skippedUnknown };
+}
+
+interface TrashByAgeOpts {
+	config: ExpConfig;
+	force: boolean;
+	shrink: boolean;
+	trashDone: boolean;
+}
+
+/**
+ * Age-filtered trash/shrink. The candidate set comes from the *other*
+ * selectors — `--done` (done branches), explicit ids/ranges, or (when age is
+ * the sole selector) all branches — then `--older-than` filters it down. The
+ * action (full trash vs `--shrink`) is orthogonal. Presence of `--older-than`
+ * always means batch mode, so the inside-a-branch self-trash path is bypassed.
+ */
+async function trashByAge(positional: string[], minDays: number, opts: TrashByAgeOpts) {
+	const { config, force, shrink, trashDone } = opts;
+	const ctx = detectContext();
+	const root = ctx.isClone ? ctx.originalRoot : getProjectRoot();
+	const base = getExpBase(root, config);
+
+	if (!existsSync(base)) {
+		dim("No branches found.");
+		return;
+	}
+	sweepTrash(base);
+
+	// Resolve the candidate set from the non-age selectors.
+	let candidates: string[];
+	const missing: number[] = [];
+	if (trashDone) {
+		candidates = listBranches(base)
+			.filter((e) => readMetadata(join(base, e.name))?.status === "done")
+			.map((e) => join(base, e.name));
+	} else if (positional.length > 0) {
+		const targets = parseTargets(positional);
+		if (targets) {
+			candidates = [];
+			for (const num of targets) {
+				const d = resolveExp(String(num), base);
+				if (d) candidates.push(d);
+				else missing.push(num);
+			}
+		} else {
+			const d = resolveExp(positional[0], base);
+			if (!d) {
+				err(`Not found: ${positional[0]}`);
+				process.exit(1);
+			}
+			candidates = [d];
+		}
+	} else {
+		// Age is the only selector → sweep all branches.
+		candidates = listBranches(base).map((e) => join(base, e.name));
+	}
+
+	if (missing.length > 0) warn(`Not found: ${missing.join(", ")}`);
+
+	const { kept, skippedUnknown } = filterByAge(candidates, minDays);
+
+	if (skippedUnknown.length > 0) {
+		warn(
+			`Skipped ${skippedUnknown.length} branch(es) with unknown age: ${skippedUnknown.join(", ")}`,
+		);
+	}
+
+	const action = shrink ? "reclaim from" : "trash";
+	if (kept.length === 0) {
+		dim(`No branches ≥${minDays}d old to ${action}.`);
+		return;
+	}
+
+	const s = kept.length === 1 ? "" : "es";
+	warn(`${kept.length} branch${s} ≥${minDays}d old to ${action}:`);
+	for (const { expName } of kept) console.log(`  ${c.dim(expName)}`);
+
+	if (!force) {
+		if (!process.stdin.isTTY) {
+			err("Cannot confirm interactively (no TTY). Use --force or -y to skip confirmation.");
+			process.exit(1);
+		}
+		const message = shrink
+			? `Reclaim deps/build dirs from ${kept.length} branch${s} ≥${minDays}d old? (keeps code)`
+			: `Trash ${kept.length} branch${s} ≥${minDays}d old?`;
+		const yes = await confirm({ message });
+		if (!yes) {
+			dim("Cancelled.");
+			return;
+		}
+	}
+
+	const branchDirs = kept.map((k) => k.expDir);
+	const names = kept.map((k) => k.expName);
+
+	if (shrink) {
+		const { elapsedMs, deferred, reclaimed } = await reclaimDisposable(branchDirs, base, config);
+		reportShrink(names, reclaimed, elapsedMs, deferred, config);
+		return;
+	}
+
+	const { elapsedMs, deferred } = await stageAndDefer(branchDirs, base);
+	if (config.json) {
+		console.log(
+			JSON.stringify({
+				trashed: names,
+				elapsedMs: Math.round(elapsedMs),
+				deferred,
+				skippedUnknown,
+			}),
+		);
+	} else {
+		ok(`Trashed ${names.length} branch${s} in ${fmt(elapsedMs)}${deferredSuffix(deferred)}`);
+	}
+}
+
 export async function cmdTrash(args: string[], config: ExpConfig) {
-	const flags = args.filter((a) => a.startsWith("-"));
-	const positional = args.filter((a) => !a.startsWith("-"));
+	// Pull off --older-than (and its value) first so the value can't be parsed
+	// as a positional branch id.
+	const {
+		found: hasOlderThan,
+		value: olderThanRaw,
+		rest: argv,
+	} = extractFlagValue(args, "--older-than");
+	const flags = argv.filter((a) => a.startsWith("-"));
+	const positional = argv.filter((a) => !a.startsWith("-"));
 	const query = positional[0];
 	const force = flags.includes("--force") || flags.includes("-y");
 	const trashDone = flags.includes("--done");
 	// --shrink reclaims only the disposable dirs (node_modules, build output)
 	// inside the selected branches — the branch and its code are left intact.
 	const shrink = flags.includes("--shrink");
+
+	// ── Age-based batch (--older-than) — composes with --done / ids / --shrink ──
+	if (hasOlderThan) {
+		const minDays = olderThanRaw !== null ? parseDays(olderThanRaw) : null;
+		if (minDays === null) {
+			err(
+				`Invalid --older-than value${olderThanRaw ? `: ${olderThanRaw}` : " (missing)"} — use days, e.g. 20, 20d, or 3w`,
+			);
+			process.exit(1);
+		}
+		await trashByAge(positional, minDays, { config, force, shrink, trashDone });
+		return;
+	}
 
 	// ── Batch over all done branches ──
 	if (trashDone) {

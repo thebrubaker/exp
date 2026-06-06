@@ -63,7 +63,7 @@ src/
 │   ├── home.ts         # cd to original project (from inside branch)
 │   ├── init.ts         # Interactive onboarding wizard + shell integration
 │   ├── done.ts         # Mark branch as done (safe to trash)
-│   ├── trash.ts        # Delete branch (+ --done batch, --shrink reclaims deps/build dirs only)
+│   ├── trash.ts        # Delete branch (+ --done batch, --shrink deps/build only, --older-than age filter)
 │   ├── open.ts         # Open terminal in branch
 │   ├── cd.ts           # cd to branch directory (+ proactive shell integration install)
 │   ├── shell-init.ts   # Print shell wrapper function (zsh/bash/fish)

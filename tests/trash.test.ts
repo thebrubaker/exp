@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findDisposableDirs, reclaimDisposable } from "../src/commands/trash.ts";
+import {
+	extractFlagValue,
+	filterByAge,
+	findDisposableDirs,
+	reclaimDisposable,
+} from "../src/commands/trash.ts";
 import type { ExpConfig } from "../src/core/config.ts";
 import { parseTargets } from "../src/utils/targets.ts";
 
@@ -183,5 +188,87 @@ describe("reclaimDisposable", () => {
 		const result = await reclaimDisposable([clean], BASE, makeConfig());
 		expect(result.reclaimed).toBe(0);
 		expect(existsSync(join(clean, "src", "app.ts"))).toBe(true);
+	});
+});
+
+// ── Age-based selection (--older-than) ──
+
+describe("extractFlagValue", () => {
+	test("--flag value form: pulls value, strips both from rest", () => {
+		const r = extractFlagValue(["--older-than", "20", "1", "3-5"], "--older-than");
+		expect(r.found).toBe(true);
+		expect(r.value).toBe("20");
+		expect(r.rest).toEqual(["1", "3-5"]); // value did NOT leak into positionals
+	});
+
+	test("--flag=value form", () => {
+		const r = extractFlagValue(["--older-than=3w", "--shrink"], "--older-than");
+		expect(r.found).toBe(true);
+		expect(r.value).toBe("3w");
+		expect(r.rest).toEqual(["--shrink"]);
+	});
+
+	test("flag present but value missing (next token is a flag)", () => {
+		const r = extractFlagValue(["--older-than", "--force"], "--older-than");
+		expect(r.found).toBe(true);
+		expect(r.value).toBeNull();
+		expect(r.rest).toEqual(["--force"]);
+	});
+
+	test("flag absent", () => {
+		const r = extractFlagValue(["1", "--shrink"], "--older-than");
+		expect(r.found).toBe(false);
+		expect(r.value).toBeNull();
+		expect(r.rest).toEqual(["1", "--shrink"]);
+	});
+});
+
+describe("filterByAge", () => {
+	const STAMP = `exp-age-test-${process.pid}`;
+	const ROOT = join("/tmp", STAMP);
+	const AGE_BASE = join(ROOT, ".exp-proj");
+
+	const DAY = 86_400_000;
+
+	/** Create a branch dir with a .exp metadata file whose created is `daysOld` ago. */
+	function ageBranch(name: string, daysOld: number | null) {
+		const dir = join(AGE_BASE, name);
+		mkdirSync(dir, { recursive: true });
+		if (daysOld === null) {
+			// metadata present but no/garbage created → unknown age
+			writeFileSync(join(dir, ".exp"), JSON.stringify({ name }));
+		} else {
+			const created = new Date(Date.now() - daysOld * DAY).toISOString();
+			writeFileSync(join(dir, ".exp"), JSON.stringify({ name, created }));
+		}
+		return dir;
+	}
+
+	beforeEach(() => rmSync(ROOT, { recursive: true, force: true }));
+	afterEach(() => rmSync(ROOT, { recursive: true, force: true }));
+
+	test("keeps branches at/over the threshold, drops younger ones", () => {
+		const old = ageBranch("001-old", 30);
+		const edge = ageBranch("002-edge", 20);
+		ageBranch("003-young", 5);
+
+		const { kept, skippedUnknown } = filterByAge([old, edge, join(AGE_BASE, "003-young")], 20);
+		expect(kept.map((k) => k.expName).sort()).toEqual(["001-old", "002-edge"]);
+		expect(skippedUnknown).toEqual([]);
+	});
+
+	test("never sweeps unknown-age branches — reports them as skipped", () => {
+		const old = ageBranch("001-old", 40);
+		const unknown = ageBranch("002-unknown", null);
+
+		const { kept, skippedUnknown } = filterByAge([old, unknown], 10);
+		expect(kept.map((k) => k.expName)).toEqual(["001-old"]);
+		expect(skippedUnknown).toEqual(["002-unknown"]);
+	});
+
+	test("empty kept set when nothing meets the threshold", () => {
+		const young = ageBranch("001-young", 2);
+		const { kept } = filterByAge([young], 30);
+		expect(kept).toEqual([]);
 	});
 });

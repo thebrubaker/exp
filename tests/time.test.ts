@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { timeAgo } from "../src/utils/time.ts";
+import { ageInDays, parseDays, timeAgo } from "../src/utils/time.ts";
 
 function ago(ms: number): string {
 	return new Date(Date.now() - ms).toISOString();
@@ -55,5 +55,46 @@ describe("timeAgo", () => {
 
 	test("boundary: exactly 30 days becomes 1mo", () => {
 		expect(timeAgo(ago(30 * DAY))).toBe("1mo ago");
+	});
+});
+
+describe("ageInDays", () => {
+	test("returns fractional days for a valid ISO date", () => {
+		expect(ageInDays(ago(2 * DAY))).toBeCloseTo(2, 1);
+		expect(ageInDays(ago(0))).toBeCloseTo(0, 2);
+	});
+
+	test("returns null for unparseable input", () => {
+		expect(ageInDays("not-a-date")).toBeNull();
+		expect(ageInDays("")).toBeNull();
+	});
+});
+
+describe("parseDays", () => {
+	test("bare number is days", () => {
+		expect(parseDays("20")).toBe(20);
+		expect(parseDays("0")).toBe(0);
+	});
+
+	test("d suffix is days", () => {
+		expect(parseDays("20d")).toBe(20);
+		expect(parseDays("7D")).toBe(7);
+	});
+
+	test("w suffix is weeks", () => {
+		expect(parseDays("3w")).toBe(21);
+		expect(parseDays("1W")).toBe(7);
+	});
+
+	test("tolerates surrounding/internal whitespace", () => {
+		expect(parseDays(" 5 ")).toBe(5);
+		expect(parseDays("2 w")).toBe(14);
+	});
+
+	test("rejects garbage and negatives", () => {
+		expect(parseDays("abc")).toBeNull();
+		expect(parseDays("-5")).toBeNull();
+		expect(parseDays("5y")).toBeNull();
+		expect(parseDays("")).toBeNull();
 	});
 });
