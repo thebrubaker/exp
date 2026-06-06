@@ -8,7 +8,7 @@ Diff: `exp diff 009` | Trash: `exp trash 009`
 
 # CLAUDE.md — exp
 
-Version: v0.11.0
+Version: v0.12.0
 
 ## Overview
 
