@@ -93,7 +93,13 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 	const expName = `${num}-${slug}`;
 	const expDir = `${base}/${expName}`;
 
-	// Resolve source for cloning
+	// Resolve source for cloning. The source is ALWAYS the project root
+	// unless --from is given — being cwd'd inside a branch does NOT silently
+	// make that branch the source. Inferring the source from cwd caused
+	// DIG-281: `exp new A && exp new B` forked B from A, because the shell
+	// wrapper cd's into A between the two commands, so B's cwd was inside A.
+	// That silent semantic shift (an implicit --from the user never asked for)
+	// is the bug. Branch-from-branch is real, but it's opt-in via --from.
 	let cloneSource = root;
 	let cloneSourceLabel = name;
 	let fromExpName: string | undefined;
@@ -105,11 +111,6 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
-		cloneSourceLabel = fromExpName;
-	} else if (ctx.isClone) {
-		// Auto-detected: we're inside a branch, branch from it
-		cloneSource = ctx.expDir;
-		fromExpName = ctx.expName;
 		cloneSourceLabel = fromExpName;
 	}
 
@@ -294,7 +295,7 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		dim(`  source: ${cloneSource}`);
 		dim(`  exp:    ${expDir}`);
 		if (ctx.isClone && !fromId) {
-			dim(`  (auto-detected: branching from ${ctx.expName})`);
+			dim(`  (cloned from project root — use --from ${ctx.number} to branch from ${ctx.expName})`);
 		}
 
 		if (branchName) {
@@ -343,6 +344,10 @@ export async function cmdNew(args: string[], config: ExpConfig) {
 		}
 
 		dim(`  path:   ${expDir}`);
+		dim(`  from:   ${cloneSourceLabel}`);
+		if (ctx.isClone && !fromId) {
+			dim(`  (from project root — use --from ${ctx.number} to branch from ${ctx.expName})`);
+		}
 
 		if (deferredPaths.length > 0) {
 			warn(`${config.deferDirs.join(", ")} copying in background`);

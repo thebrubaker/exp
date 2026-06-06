@@ -201,6 +201,11 @@ function writeExpMeta(dir: string, meta: Record<string, unknown>) {
 /**
  * Simulate the source resolution logic from cmdNew.
  * Returns the clone source and fromExpName that would be used.
+ *
+ * The source is ALWAYS the project root unless --from is given. Being cwd'd
+ * inside a branch (ctx.isClone) does NOT silently make that branch the source
+ * — that was DIG-281, where `exp new A && exp new B` forked B from A because
+ * the shell wrapper cd'd into A. Branch-from-branch is opt-in via --from.
  */
 function resolveCloneSource(
 	fromId: string | null,
@@ -221,17 +226,13 @@ function resolveCloneSource(
 		cloneSource = resolved;
 		fromExpName = basename(resolved);
 		cloneSourceLabel = fromExpName;
-	} else if (ctx.isClone) {
-		cloneSource = ctx.expDir;
-		fromExpName = ctx.expName;
-		cloneSourceLabel = fromExpName;
 	}
 
 	return { cloneSource, cloneSourceLabel, fromExpName };
 }
 
-describe("branch context auto-detection", () => {
-	test("when inside branch and no --from, clones from current branch", () => {
+describe("source resolution", () => {
+	test("when inside branch and no --from, still clones from project root (DIG-281)", () => {
 		const expDir = join(tmpBase, "001-try-redis");
 		mkdirSync(expDir);
 		writeExpMeta(expDir, {
@@ -252,9 +253,11 @@ describe("branch context auto-detection", () => {
 			tmpBase,
 			"my-project",
 		);
-		expect(result.cloneSource).toBe(expDir);
-		expect(result.fromExpName).toBe("001-try-redis");
-		expect(result.cloneSourceLabel).toBe("001-try-redis");
+		// Source is the project root, NOT the branch we're sitting in.
+		// Branch-from-branch requires explicit --from.
+		expect(result.cloneSource).toBe("/Users/joel/Code/my-project");
+		expect(result.fromExpName).toBeUndefined();
+		expect(result.cloneSourceLabel).toBe("my-project");
 	});
 
 	test("--from takes priority over auto-detected branch context", () => {
@@ -322,7 +325,7 @@ describe("branch context auto-detection", () => {
 		expect(ctx.originalRoot).toBe("/Users/joel/Code/big-app");
 	});
 
-	test("auto-detected context from subdirectory of branch", () => {
+	test("context still detected from a branch subdirectory, but source stays project root", () => {
 		const expDir = join(tmpBase, "001-try-redis");
 		mkdirSync(expDir);
 		writeExpMeta(expDir, {
@@ -340,11 +343,13 @@ describe("branch context auto-detection", () => {
 		expect(ctx.isClone).toBe(true);
 		if (!ctx.isClone) return;
 
+		// Context detection still works (used to resolve the real project root)…
 		expect(ctx.expDir).toBe(expDir);
 		expect(ctx.expName).toBe("001-try-redis");
 
+		// …but the clone source is the project root, not the branch.
 		const result = resolveCloneSource(null, ctx, ctx.originalRoot, tmpBase, "my-project");
-		expect(result.cloneSource).toBe(expDir);
-		expect(result.fromExpName).toBe("001-try-redis");
+		expect(result.cloneSource).toBe(ctx.originalRoot);
+		expect(result.fromExpName).toBeUndefined();
 	});
 });

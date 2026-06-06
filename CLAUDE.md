@@ -67,7 +67,7 @@ commands/                   # (empty — /exp is now a global skill)
 - **Config merging:** `writeConfig()` merges new values with existing config so custom keys (e.g., `root`) aren't lost.
 - **Terminal opening:** Ghostty uses `open -na` for new windows; iTerm/Terminal use osascript; tmux uses native commands
 - **Terminal behavior:** Terminal opening is opt-in via `--terminal` flag (or `auto_terminal=true` in config). Default: cd into branch.
-- **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — enables branch-from-branch and `exp home`
+- **Context detection:** `detectContext()` in `core/context.ts` walks up from cwd looking for `.exp` metadata — used to resolve the real project root from inside a branch (for `exp new`, `exp home`, and sibling resolution). Note: `exp new` clones from the project root even when run inside a branch — context detection finds the root, it does *not* make the current branch the clone source (DIG-281). Branch-from-branch is explicit via `--from`.
 - **Branch resolution:** By number (`1`), full name (`001-try-redis`), or partial match (`redis`)
 - **Auto-branch:** `exp new` creates `<prefix>/<slug>` git branch (prefix from config, git first name, or "exp" fallback). `--branch` flag for exact names.
 - **Diverged size:** `exp ls` reports actual diverged bytes (changed/new files only), not misleading apparent size
