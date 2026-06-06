@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `exp trash --shrink` reclaims disk from branches you're not ready to fully trash: it stages and removes only the *disposable* dirs inside the selected branches — the union of `defer_dirs` (node_modules) and `clean` (.next, .turbo) — leaving the branch and all code intact. For limbo branches you can't triage yet but know you don't need installed deps for; next use, `pnpm install` / a build regenerates them. Works with every existing trash selector (`<id>`, ranges `1 3-5 8`, `--done`, self from inside a branch, `--force`/`-y`, `--json`). Finds nested workspace `node_modules` recursively (prunes at each match, skips `.git`, never follows symlinks), and reuses trash's instant atomic rename-into-`.trash` + deferred background `rm`. No pre-reclaim size reporting (would require a slow `du`; out per PHILOSOPHY). JSON: `{ shrunk: [...names], reclaimed: <dirCount>, elapsedMs, deferred }`. Nothing to reclaim is reported, never an error.
+- Fix: staged-trash names now use the full UUIDv7, not its 8-char prefix. The prefix is a millisecond timestamp, so multiple same-basename targets staged in one tick (e.g. several `node_modules` during a `--shrink`) could collide and fail with `ENOTEMPTY`. Whole-branch trash never hit this (branch dirs have unique names); surfaced by `--shrink` staging many `node_modules` at once.
+
 ## v0.11.0 — 2026-06-06
 
 - `exp help` (and bare `exp`) now print the version in the header (`exp vX.Y.Z`) — makes it obvious which build is running, since a dev symlink (`~/.local/bin/exp`) and a Homebrew install can resolve differently across interactive vs non-interactive shells.

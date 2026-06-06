@@ -44,6 +44,7 @@ function printHelp() {
     exp trash <id> [--force]  Delete branch (--force/-y skips confirmation)
     exp trash 1 3-5 8         Trash multiple branches (numbers and ranges)
     exp trash --done          Trash all done branches
+    exp trash <id> --shrink   Reclaim deps/build dirs, keep the branch + code
     exp nuke                  Delete ALL branches (interactive only — requires human)
     exp cp <src> [dest]       APFS clonefile copy of any directory
     exp cd <id>               Change to branch directory (with shell-init)
@@ -69,6 +70,7 @@ function printHelp() {
 
   FLAGS
     --json               Machine-readable JSON output (for AI/scripts)
+    --shrink             With trash: reclaim deps/build dirs only, keep the branch
     --verbose            Show timing, paths, and method details
     --terminal           Open a new terminal window in branch
     --no-terminal        Suppress terminal (overrides auto_terminal)

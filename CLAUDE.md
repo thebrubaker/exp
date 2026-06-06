@@ -1,3 +1,11 @@
+<!-- exp:start -->
+## Side quest: trash --shrink flag to reclaim node_modules/build dirs
+
+APFS clone of `exp`. Original untouched at `/Users/joel/Code/exp`.
+Goal: **trash --shrink flag to reclaim node_modules/build dirs**
+Diff: `exp diff 009` | Trash: `exp trash 009`
+<!-- exp:end -->
+
 # CLAUDE.md — exp
 
 Version: v0.11.0
@@ -55,7 +63,7 @@ src/
 │   ├── home.ts         # cd to original project (from inside branch)
 │   ├── init.ts         # Interactive onboarding wizard + shell integration
 │   ├── done.ts         # Mark branch as done (safe to trash)
-│   ├── trash.ts        # Delete branch (+ --done for batch cleanup)
+│   ├── trash.ts        # Delete branch (+ --done batch, --shrink reclaims deps/build dirs only)
 │   ├── open.ts         # Open terminal in branch
 │   ├── cd.ts           # cd to branch directory (+ proactive shell integration install)
 │   ├── shell-init.ts   # Print shell wrapper function (zsh/bash/fish)
