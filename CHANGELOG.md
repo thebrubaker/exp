@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.13.0 — 2026-06-07
 
 - `exp trash --older-than <N>` selects branches by age. `<N>` is a bare number of days, or with a `d`/`w` suffix (`20`, `20d`, `3w`). It's a *filter* on the candidate set, so it composes with every other selector: with `--done` (done **and** old), with explicit ids/ranges (those ids, filtered to the old ones), and — when age is the only selector — over **all** branches as a sweep (like `--done`). Orthogonal to the action: `exp trash --shrink --older-than 20` reclaims deps/build dirs from every branch ≥20d old; `exp trash --older-than 30 --force` full-trashes everything ≥30d old. Conservative on unknown age: a branch whose `created` metadata is missing/unparseable is **never** swept and is reported as skipped (a destructive op must not act on data it can't read). Presence of `--older-than` always means batch mode, so it bypasses the inside-a-branch self-trash path. Empty match is reported, not an error. Full-trash JSON gains `skippedUnknown: [...names]`. New helpers in `utils/time.ts`: `ageInDays` (null on unparseable) and `parseDays` (days/`d`/`w`).
 

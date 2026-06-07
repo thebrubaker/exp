@@ -1,6 +1,6 @@
 # CLAUDE.md — exp
 
-Version: v0.12.0
+Version: v0.13.0
 
 ## Overview
 
